@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+		<meta charset="utf-8">
+		<title>Decision Tree</title>
+		<script src="http://ajax.aspnetcdn.com/ajax/jQuery/jquery-1.11.3.min.js"></script>
+		<script src="http://d3js.org/d3.v3.min.js"></script>
+		<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.6/angular.min.js"></script>
+		<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/angular-ui-bootstrap/0.13.4/ui-bootstrap-tpls.js"></script>
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" />
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap-theme.min.css" />
+		
+		<style>
+		 .node circle {
+		   fill: #fff;
+		   stroke: steelblue;
+		   stroke-width: 3px;
+		 }
+		 
+		 .node text { font: 12px sans-serif; }
+		 
+		 .link {
+		   fill: none;
+		   stroke: #ccc;
+		   stroke-width: 2px;
+		 }
+		</style>
+	</head>
+	<body ng-app="app" ng-controller="Ctrl as vm">
+	<nav class="navbar navbar-default">
+	  <div class="container-fluid">
+		<!-- Brand and toggle get grouped for better mobile display -->
+		<div class="navbar-header">
+		  <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+			<span class="sr-only">Toggle navigation</span>
+			<span class="icon-bar"></span>
+			<span class="icon-bar"></span>
+			<span class="icon-bar"></span>
+		  </button>
+		</div>
+
+		<!-- Collect the nav links, forms, and other content for toggling -->
+		<div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+		  <ul class="nav navbar-nav">
+			<li><a href="#" ng-click="vm.NewTree()"><span class="glyphicon glyphicon-file" aria-hidden="true"></span> New</a></li>
+			<li><a href="#" ng-click="vm.SaveFile($event)"><span class="glyphicon glyphicon-floppy-save" aria-hidden="true"></span> Save</a></li>
+		  </ul>
+		</div><!-- /.navbar-collapse -->
+	  </div><!-- /.container-fluid -->
+	</nav>
+	
+	
+	<script>
+	var treeData=null;
+	if(localStorage.getItem("tree"))
+	{
+		treeData=JSON.parse(localStorage.getItem("tree"));
+	}else
+	{
+		treeData=[
+		  {
+			"name": "Top Level",
+			"ExpVal":"0",
+			"parent": "null",
+			"Type":"d",
+			"children": []
+		  }
+		];
+	}
+
+	function CalcEV(node)
+	{
+		switch(node.Type) {
+			case("c"):
+				var sum=0;
+				sum=(!node.children)?0:node.children.reduce(function(val,elem){return val+elem.ExpVal*elem.Probability},0);
+				return sum;
+			break;
+			case("d"):
+				var max=0;
+				max=(!node.children)?0:node.children.reduce(function(val,elem){return elem.ExpVal>val?elem.ExpVal:val;},0);
+				return max;
+			break;
+		}
+	}	
+	
+	var ctrl = function ($scope,$modal) {
+		var self = this;
+		self.title = 'Some title';
+		
+		self.Open = function (item, size) {
+			self.currNode=item;
+			var modalInstance = $modal.open({
+			  animation: true,
+			  templateUrl: 'myModalContent.html',
+			  controller: 'ModalInstanceCtrl as vm',
+			  size: size,
+			  resolve:{currNode:function(){return self.currNode}},
+			});
+
+			modalInstance.result.then(function (selectedItem) {
+				main.RenderTree(self.currNode);
+			}, function () {
+			  
+			});
+		  };
+		self.SaveFile = function (event){
+		
+		var json = JSON.stringify(treeData,function( key, value) {
+					if( key == 'parent') { return value.name;}
+					else if( key == 'depth') { return undefined;}
+					else if( key == 'x') { return undefined;}
+					else if( key == 'y') { return undefined;}
+					else {return value;}
+					});
+			
+			//var url = 'data:text/plain;charset=utf-8,' + encodeURIComponent(json);
+			//event.target.download = "DecisionTree";
+			//event.target.href = url;
+			
+			localStorage["tree"]=json;
+		};
+		  
+		self.NewTree = function(){
+			treeData = [
+				{
+					"name": "Top Level",
+					"ExpVal":"0",
+					"parent": "null",
+					"Type":"d"
+				}];
+			main.SetupTree();
+			main.RenderTree();
+		};
+	};
+	
+	var ModalInstanceCtrl = function ($modalInstance, currNode) {
+		this.currNode=currNode;
+
+		this.ok = function () {
+			$modalInstance.close('ok');
+		};
+
+		this.cancel = function () {
+			$modalInstance.dismiss('cancel');
+		};
+		
+		this.AddChild = function () {
+			var treeNode = main.tree.nodes(this.currNode)[0]
+			if(!treeNode.children){ treeNode.children=[];}
+			var newChild = {
+				"name": "NewNode",
+				"parent": this.currNode.name,
+				"Probability":"",
+				"ExpVal":"0",
+				"Type":"e",
+				"x":treeNode.x,
+				"y":treeNode.y
+			};
+			treeNode.Type=treeNode.Type=="e"?"c":treeNode.Type;
+			treeNode.children.push(newChild);
+		};
+	};
+	
+	var app = angular.module("app",['ui.bootstrap'])
+	.controller('Ctrl',ctrl)
+	.controller('ModalInstanceCtrl',ModalInstanceCtrl);
+
+	var main = (function(){
+		var height;
+		var width;
+		var root;
+		var tree;
+		var svg;
+		var diagonal;
+		var i;
+		var rtn = {
+			Tree:function(){return tree;},
+			SetupD3 : function()
+			{
+				var margin = {top: 20, right: 120, bottom: 20, left: 120}
+				this.width = 1024 - margin.right - margin.left,
+				this.height = 800 - margin.top - margin.bottom;
+				
+				this.svg = d3.select("body").append("svg")
+					.attr("width", this.width + margin.right + margin.left)
+					.attr("height", this.height + margin.top + margin.bottom)
+					.append("g")
+					.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+			},
+			
+			SetupTree : function(){
+				this.tree = d3.layout.tree()
+					.size([this.height, this.width]);
+					//.separation(function(){return 2;});
+
+				this.diagonal = d3.svg.diagonal()
+					.projection(function(d) { return [d.y, d.x]; });
+
+				this.root = treeData[0];
+				
+				this.i=this.root.maxId||0;
+				this.root.maxId=this.i;
+				
+			},
+			
+			TypeToShape : function(type)
+			{
+				switch(type)
+				{
+					case "e":
+						return "triangle-up";
+					case "d":
+						return "square";
+					case "c":
+						return "circle";
+				}
+			},
+			
+			TypeToColour : function(type)
+			{
+				switch(type)
+				{
+					case "e":
+						return "green";
+					case "d":
+						return "red";
+					case "c":
+						return "orange";
+				}
+			},
+			
+			Elbow : function (d, i) 
+			{
+				return "M" + d.source.y + "," + d.source.x
+				+ "V" + d.target.x + "H" + d.target.y;
+			},
+			
+			RenderTree : function(parent) {
+				var self = this;
+				
+				
+				// Compute the new tree layout.
+				var nodes = self.tree.nodes(self.root).reverse(),
+				links = self.tree.links(nodes);
+
+				// Normalize for fixed-depth.
+				nodes.forEach(function(d) { d.y = d.depth * 120; });
+
+				// Declare the nodes
+				var select = self.svg.selectAll("g.node")
+				var node = select.data(nodes, function(d) 
+						{ 
+							if(d.Type!=="e"){
+								d.ExpVal=function(){return CalcEV(d);}();
+							}
+							var nodeid=d.id || (d.id = ++self.i);
+							self.root.maxId=nodeid>self.root.maxId?nodeid:self.root.maxId;
+							return nodeid;
+						});
+
+				// Enter the nodes.
+				var nodeEnter = node.enter().append("g")
+				.attr("class", "node")
+				.attr("transform", function(d) { 
+				return "translate(" + d.y + "," + d.x + ")"; });
+
+				nodeEnter.append('path')
+				.attr("d", d3.svg.symbol().type(function(d)
+				{
+					return self.TypeToShape(d.Type);
+				})
+				.size(300))
+				.attr("transform", function(d) 
+				{ 
+					var transform="translate(" + 2 + "," + -1 + ")"
+					if (d.Type==="e")
+					{
+						transform = transform+" rotate(30)"; 
+					}
+					return transform;
+				})
+				.style("fill", function(d){
+					return self.TypeToColour(d.Type);
+				});
+
+				nodeEnter.append("text")
+				   .attr("class","name")
+				   .attr("x", "-25")
+				   .attr("y", "-20")
+				   .attr("dy", ".35em")
+				   .attr("text-anchor", "start")
+				   .text(function(d) { return d.name; })
+				   .style("fill-opacity", 1);
+
+				nodeEnter.append("text")
+				   .attr("class","prob")
+				   .attr("x", "-20")
+				   .attr("y", "15")
+				   .attr("dy", ".35em")
+				   .attr("text-anchor", "start")
+				   .text(function(d) { return "Prob: "+d.Probability; })
+				   .style("fill-opacity", 1)
+				   .style("fill","green");
+
+
+				nodeEnter.append("text")
+				   .attr("class","expval")
+				   .attr("x", "-20")
+				   .attr("y", "25")
+				   .attr("dy", ".35em")
+				   .attr("text-anchor", "start")
+				   .text(function(d) { return "EV: "+d.ExpVal; })
+				   .style("fill-opacity", 1);
+
+				   
+				nodeEnter.on("click",function(d){
+					angular.element(this).scope().vm.Open(d);
+				});
+				
+				node.select("path")
+				.attr("d", d3.svg.symbol().type(function(d)
+				{
+					return self.TypeToShape(d.Type);
+				})
+				.size(300))
+				.attr("transform", function(d) 
+				{ 
+					var transform="translate(" + 2 + "," + -1 + ")"
+					if (d.Type==="e")
+					{
+						transform = transform+" rotate(30)"; 
+					}
+					return transform;
+				})
+				.style("fill", function(d){
+					return self.TypeToColour(d.Type);
+				});
+				
+				var nodeUpdate = node.transition();
+				
+				nodeUpdate.attr("transform", function(d) { 
+				return "translate(" + d.y + "," + d.x + ")"; });
+				
+				nodeUpdate.select(".name")
+						  .text(function(d) { return d.name; })
+						  .style("fill-opacity", 1);
+
+				nodeUpdate.select(".prob")
+						  .text(function(d) { return d.Probability; })
+						  .style("fill-opacity", 1);
+				
+				nodeUpdate.select(".expval")
+						  .text(function(d) { return d.ExpVal; })
+						  .style("fill-opacity", 1);
+						  
+				node.exit().remove();
+
+				// Declare the links
+				var link = self.svg.selectAll("path.link")
+				.data(links, function(d) { return d.target.id; });
+
+				// Enter the links.
+				link.enter().insert("path", "g")
+				.attr("class", "link")
+				.attr("d", self.diagonal)
+				.style("fill-opacity", function(d) { 
+					return d.id; 
+				});
+				
+				link.transition()
+				.attr("d", self.diagonal);
+				
+				link.exit().remove();
+			}
+		}
+		rtn.SetupD3();
+		rtn.SetupTree();
+		rtn.RenderTree(rtn.root);
+	
+		return rtn;
+	})();
+	
+	</script>
+	
+	<script type="text/ng-template" id="myModalContent.html">
+        <div class="modal-header">
+            <h3 class="modal-title">Edit Node</h3>
+        </div>
+        <div class="modal-body">
+			<div class="form-group">
+				<label>Node Name</label>
+				<input type="text" class="form-control" placeholder="Name" ng-model="vm.currNode.name" />
+			</div>
+
+			<div class="form-group">
+				<label>Type</label>
+				<select ng-model="vm.currNode.Type" class="form-control">
+					<option value="d" ng-selected="vm.currNode.Type=='d'">Decision</option>
+					<option value="c" ng-selected="vm.currNode.Type=='c'">Chance</option>
+					<option value="e" ng-selected="vm.currNode.Type=='e'">End</option>
+				</select>
+			</div>
+
+			<div class="form-group" ng-show="{{vm.currNode.parent.Type=='c'}}">
+				<label>Probability</label>
+				<input type="text" class="form-control" placeholder="Probability" ng-model="vm.currNode.Probability" />
+			</div>
+
+			<div class="form-group" ng-show="{{vm.currNode.Type=='e'}}">
+				<label>Value</label>
+				<input type="text" class="form-control" placeholder="Value" ng-model="vm.currNode.ExpVal" />
+			</div>
+        </div>
+        <div class="modal-footer">
+			<span class="pull-left">
+				<button class="btn btn-primary" ng-click="vm.AddChild()">Add Child Node</button>
+				<button class="btn btn-default" ng-click="vm.DeleteNode()">Delete Node</button>
+			</span>
+            <button class="btn btn-primary" type="button" ng-click="vm.ok()">OK</button>
+            <button class="btn btn-warning" type="button" ng-click="vm.cancel()">Cancel</button>
+        </div>
+    </script>
+
+	</body>
+</html>
