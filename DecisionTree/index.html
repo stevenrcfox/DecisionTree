@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 	<head>
 		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
@@ -44,25 +44,118 @@
 		<!-- Collect the nav links, forms, and other content for toggling -->
 		<div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
 		  <ul class="nav navbar-nav">
-			<li><a href="#" ng-click="vm.NewTree()"><span class="glyphicon glyphicon-file" aria-hidden="true"></span> New</a></li>
+		    <li><a href="#" ng-click="vm.NewTree()"><span class="glyphicon glyphicon-file" aria-hidden="true"></span> New</a></li>
+            <li><a href="#" ng-click="vm.LoadFile($event)"><span class="glyphicon glyphicon-folder-open" aria-hidden="true"></span> Load</a></li>
 			<li><a href="#" ng-click="vm.SaveFile($event)"><span class="glyphicon glyphicon-floppy-save" aria-hidden="true"></span> Save</a></li>
+			<li><a href="#" ng-click="vm.DisplaySettings()"><span class="glyphicon glyphicon-cog" aria-hidden="true"></span> Display Settings</a></li>
 		  </ul>
 		</div><!-- /.navbar-collapse -->
 	  </div><!-- /.container-fluid -->
 	</nav>
 	
-	
+	<script type="text/ng-template" id="myModalContent.html">
+        <div class="modal-header">
+            <h3 class="modal-title">Edit Node</h3>
+        </div>
+        <div class="modal-body">
+			<div class="form-group">
+				<label>Node Name</label>
+				<input type="text" class="form-control" placeholder="Name" ng-model="vm.currNode.name" />
+			</div>
+
+			<div class="form-group" ng-show="{{!vm.currNode.TreeStyle}}">
+				<label>Type</label>
+				<select ng-model="vm.currNode.Type" class="form-control">
+					<option value="d" ng-selected="vm.currNode.Type=='d'" ng-if="(vm.currNode.children&&(vm.currNode.children.length>0))">Decision</option>
+					<option value="c" ng-selected="vm.currNode.Type=='c'" ng-if="(vm.currNode.children&&(vm.currNode.children.length>0))">Chance</option>
+					<option value="e" ng-selected="vm.currNode.Type=='e'" ng-if="!(vm.currNode.children&&(vm.currNode.children.length>0))">End</option>
+				</select>
+			</div>
+
+			<div class="form-group" ng-show="{{vm.currNode.parent.Type=='c'}}">
+				<label>Probability</label>
+				<input type="number" class="form-control" placeholder="Probability" ng-model="vm.currNode.Probability" />
+			</div>
+
+			<div class="form-group" ng-show="{{vm.currNode.Type=='e'}}">
+				<label>Value</label>
+				<input type="number" class="form-control" placeholder="Value" ng-model="vm.currNode.ExpVal" />
+			</div>
+        </div>
+        <div class="modal-footer">
+			<span class="pull-left">
+				<button class="btn btn-primary" ng-click="vm.AddChild()">Add Child Node</button>
+				<button class="btn btn-default" ng-click="vm.DeleteNode()">Delete Node</button>
+			</span>
+            <button class="btn btn-primary" type="button" ng-click="vm.ok()">OK</button>
+            <button class="btn btn-warning" type="button" ng-click="vm.cancel()">Cancel</button>
+        </div>
+    </script>
+
+	<script type="text/ng-template" id="displaySettings.html">
+        <div class="modal-header">
+            <h3 class="modal-title">Display Settings</h3>
+        </div>
+        <div class="modal-body">
+
+			<div class="form-group">
+				<label>Line Type</label>
+				<select ng-model="vm.currNode.LineStyle" class="form-control">
+					<option value="a" ng-selected="vm.currNode.LineStyle=='a'">Angle</option>
+					<option value="s" ng-selected="vm.currNode.LineStyle=='s'">Square</option>
+					<option value="c" ng-selected="vm.currNode.LineStyle=='c'">Curve</option>
+				</select>
+			</div>
+			
+			<div class="form-group">
+				<label>Line Type</label>
+				<select ng-model="vm.currNode.TreeStyle" class="form-control">
+					<option value="tree" ng-selected="vm.currNode.TreeStyle=='tree'">Standard</option>
+					<option value="cluster" ng-selected="vm.currNode.TreeStyle=='cluster'">Cluster (End Nodes Always Aligned)</option>
+				</select>
+			</div>
+
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" type="button" ng-click="vm.ok()">OK</button>
+        </div>
+    </script>
+
+    <script type="text/ng-template" id="openFile.html">
+        <div class="modal-header">
+            <h3 class="modal-title">Open File</h3>
+        </div>
+        <div class="modal-body">
+
+            <div class="form-group">
+                <label>Select File</label>
+                <input type="file" fileread="vm.uploadme">
+            </div>
+
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" type="button" ng-click="vm.SaveFile()">OK</button>
+        </div>
+    </script>
+
+
 	<script>
 	var treeData=null;
-	if(localStorage.getItem("tree"))
+	if(localStorage&&localStorage.getItem("tree"))
 	{
 		treeData=JSON.parse(localStorage.getItem("tree"));
+		if(!treeData[0].TreeStyle){
+			treeData[0].TreeStyle="tree";
+			treeData[0].LineStyle="a";
+		}
 	}else
 	{
 		treeData=[
 		  {
+			"TreeStyle":"tree",
+			"LineStyle":"a",
 			"name": "Top Level",
-			"ExpVal":"0",
+			"ExpVal":0,
 			"parent": "null",
 			"Type":"d",
 			"children": []
@@ -86,6 +179,8 @@
 		}
 	}	
 	
+	//function 
+	
 	var ctrl = function ($scope,$modal) {
 		var self = this;
 		self.title = 'Some title';
@@ -106,34 +201,109 @@
 			  
 			});
 		  };
+		  
+		  self.DisplaySettings = function () {
+			var modalInstance = $modal.open({
+			  animation: true,
+			  templateUrl: 'displaySettings.html',
+			  controller: 'ModalInstanceCtrl as vm',
+			  resolve:{currNode:function(){return treeData[0]}},
+			});
+
+			modalInstance.result.then(function (selectedItem) {
+				main.SetupTree();
+				main.RenderTree(self.currNode);
+			}, function () {
+			  
+			});
+		  };
+
+	    self.LoadFile = function() {
+
+	        var modalInstance = $modal.open({
+	            animation: true,
+	            templateUrl: 'openFile.html',
+	            controller: 'ModalInstanceCtrl as vm',
+	            resolve: { currNode: function () { return treeData[0] } },
+	        });
+
+	        modalInstance.result.then(function(selectedItem) {
+	            if (selectedItem) {
+	                var reader = new FileReader();
+	                reader.onload = (function(file) {
+                        return function(e) {
+                            treeData = JSON.parse(e.target.result);
+                            main.SetupTree();
+                            main.RenderTree(self.currNode);
+                        }
+	                })(selectedItem);
+	                reader.readAsText(selectedItem);
+	            }
+	        }, function () {
+			  
+	        });
+	    };
+		  
 		self.SaveFile = function (event){
 		
-		var json = JSON.stringify(treeData,function( key, value) {
+		    var json = JSON.stringify(treeData,function( key, value) {
 					if( key == 'parent') { return value.name;}
 					else if( key == 'depth') { return undefined;}
 					else if( key == 'x') { return undefined;}
 					else if( key == 'y') { return undefined;}
 					else {return value;}
 					});
-			
-			//var url = 'data:text/plain;charset=utf-8,' + encodeURIComponent(json);
-			//event.target.download = "DecisionTree";
-			//event.target.href = url;
-			
-			localStorage["tree"]=json;
+
+		    self.FileDownloader("decisiontree.tree",json);
+
+		    if (localStorage) {
+		        localStorage["tree"] = json;
+		    }
 		};
 		  
 		self.NewTree = function(){
 			treeData = [
 				{
+					"TreeStyle":"tree",
+					"LineStyle":"a",
 					"name": "Top Level",
-					"ExpVal":"0",
+					"ExpVal":null,
 					"parent": "null",
-					"Type":"d"
+					"Type":"d",
+					"children": []
 				}];
 			main.SetupTree();
 			main.RenderTree();
 		};
+
+		self.FileDownloader = function(fileNameToSaveAs, textToWrite) {
+	        var ie = navigator.userAgent.match(/MSIE\s([\d.]+)/),
+	            ie11 = navigator.userAgent.match(/Trident\/7.0/) && navigator.userAgent.match(/rv:11/),
+	            ieEDGE = navigator.userAgent.match(/Edge/g),
+	            ieVer = (ie ? ie[1] : (ie11 ? 11 : (ieEDGE ? 12 : -1)));
+
+	        if (ie && ieVer < 10) {
+	            console.log("No blobs on IE ver<10");
+	            return;
+	        }
+
+	        var textFileAsBlob = new Blob([textToWrite], {
+	            type: 'text/plain'
+	        });
+
+	        if (ieVer > -1) {
+	            window.navigator.msSaveBlob(textFileAsBlob, fileNameToSaveAs);
+
+	        } else {
+	            var downloadLink = document.createElement("a");
+	            downloadLink.download = fileNameToSaveAs;
+	            downloadLink.href = window.URL.createObjectURL(textFileAsBlob);
+	            downloadLink.onclick = function(e) { document.body.removeChild(e.target); };
+	            downloadLink.style.display = "none";
+	            document.body.appendChild(downloadLink);
+	            downloadLink.click();
+	        }
+	    }
 	};
 	
 	var ModalInstanceCtrl = function ($modalInstance, currNode) {
@@ -143,30 +313,58 @@
 			$modalInstance.close('ok');
 		};
 
+		this.SaveFile= function () {
+		    $modalInstance.close(this.uploadme);
+		};
+
 		this.cancel = function () {
 			$modalInstance.dismiss('cancel');
 		};
+
+		this.DeleteNode = function () {
+
+            if(this.currNode.parent){
+                var parent=this.currNode.parent;
+                parent.children.splice(parent.children.indexOf(this.currNode), 1);
+            }
+        };
 		
 		this.AddChild = function () {
-			var treeNode = main.tree.nodes(this.currNode)[0]
+		    var treeNode = main.tree.nodes(this.currNode)[0];
 			if(!treeNode.children){ treeNode.children=[];}
 			var newChild = {
 				"name": "NewNode",
 				"parent": this.currNode.name,
-				"Probability":"",
-				"ExpVal":"0",
+				"Probability":null,
+				"ExpVal":null,
 				"Type":"e",
 				"x":treeNode.x,
 				"y":treeNode.y
 			};
-			treeNode.Type=treeNode.Type=="e"?"c":treeNode.Type;
+			treeNode.Type = treeNode.Type == "e"?"c":treeNode.Type;
 			treeNode.children.push(newChild);
 		};
 	};
 	
 	var app = angular.module("app",['ui.bootstrap'])
 	.controller('Ctrl',ctrl)
-	.controller('ModalInstanceCtrl',ModalInstanceCtrl);
+	.controller('ModalInstanceCtrl', ModalInstanceCtrl)
+	.directive("fileread", [function () {
+	    return {
+	        scope: {
+	            fileread: "="
+	        },
+	        link: function (scope, element, attributes) {
+	            element.bind("change", function (changeEvent) {
+	                scope.$apply(function () {
+	                    scope.fileread = changeEvent.target.files[0];
+	                    // or all selected files:
+	                    // scope.fileread = changeEvent.target.files;
+	                });
+	            });
+	        }
+	    }
+	}]);
 
 	var main = (function(){
 		var height;
@@ -192,7 +390,7 @@
 			},
 			
 			SetupTree : function(){
-				this.tree = d3.layout.tree()
+				this.tree = this.TreeStyle(treeData[0].TreeStyle)
 					.size([this.height, this.width]);
 					//.separation(function(){return 2;});
 
@@ -232,11 +430,43 @@
 				}
 			},
 			
-			Elbow : function (d, i) 
+			AngleElbow : function (d, i) 
+			{
+				return "M" + (d.source.y+10) + "," + d.source.x
+				+ "L" + (d.source.y+50)+","+d.target.x + "H" + d.target.y;
+			},
+			
+			SquareElbow : function (d, i) 
 			{
 				return "M" + d.source.y + "," + d.source.x
-				+ "V" + d.target.x + "H" + d.target.y;
+				+ "V" + d.target.x+"H" + d.target.y;
 			},
+			
+			TreeStyle:function(style)
+			{
+				switch(style)
+				{
+					case "tree":
+						return d3.layout.tree();
+					case "cluster":
+						return d3.layout.cluster();
+				}
+			},
+			
+			LineStyle:function(style)
+			{
+				switch(style)
+				{
+					case "a":
+						return this.AngleElbow;
+					case "s":
+						return this.SquareElbow;
+					case "c":
+						return this.diagonal;
+				}
+			},
+			
+			
 			
 			RenderTree : function(parent) {
 				var self = this;
@@ -246,8 +476,10 @@
 				var nodes = self.tree.nodes(self.root).reverse(),
 				links = self.tree.links(nodes);
 
-				// Normalize for fixed-depth.
-				nodes.forEach(function(d) { d.y = d.depth * 120; });
+				if(self.root.TreeStyle=="tree"){
+					// Normalize for fixed-depth.
+					nodes.forEach(function(d) { d.y = d.depth * 120; });
+				}
 
 				// Declare the nodes
 				var select = self.svg.selectAll("g.node")
@@ -365,13 +597,13 @@
 				// Enter the links.
 				link.enter().insert("path", "g")
 				.attr("class", "link")
-				.attr("d", self.diagonal)
+				.attr("d", self.LineStyle(self.root.LineStyle))
 				.style("fill-opacity", function(d) { 
 					return d.id; 
 				});
 				
 				link.transition()
-				.attr("d", self.diagonal);
+				.attr("d", self.LineStyle(self.root.LineStyle));
 				
 				link.exit().remove();
 			}
@@ -384,45 +616,5 @@
 	})();
 	
 	</script>
-	
-	<script type="text/ng-template" id="myModalContent.html">
-        <div class="modal-header">
-            <h3 class="modal-title">Edit Node</h3>
-        </div>
-        <div class="modal-body">
-			<div class="form-group">
-				<label>Node Name</label>
-				<input type="text" class="form-control" placeholder="Name" ng-model="vm.currNode.name" />
-			</div>
-
-			<div class="form-group">
-				<label>Type</label>
-				<select ng-model="vm.currNode.Type" class="form-control">
-					<option value="d" ng-selected="vm.currNode.Type=='d'">Decision</option>
-					<option value="c" ng-selected="vm.currNode.Type=='c'">Chance</option>
-					<option value="e" ng-selected="vm.currNode.Type=='e'">End</option>
-				</select>
-			</div>
-
-			<div class="form-group" ng-show="{{vm.currNode.parent.Type=='c'}}">
-				<label>Probability</label>
-				<input type="text" class="form-control" placeholder="Probability" ng-model="vm.currNode.Probability" />
-			</div>
-
-			<div class="form-group" ng-show="{{vm.currNode.Type=='e'}}">
-				<label>Value</label>
-				<input type="text" class="form-control" placeholder="Value" ng-model="vm.currNode.ExpVal" />
-			</div>
-        </div>
-        <div class="modal-footer">
-			<span class="pull-left">
-				<button class="btn btn-primary" ng-click="vm.AddChild()">Add Child Node</button>
-				<button class="btn btn-default" ng-click="vm.DeleteNode()">Delete Node</button>
-			</span>
-            <button class="btn btn-primary" type="button" ng-click="vm.ok()">OK</button>
-            <button class="btn btn-warning" type="button" ng-click="vm.cancel()">Cancel</button>
-        </div>
-    </script>
-
 	</body>
 </html>
