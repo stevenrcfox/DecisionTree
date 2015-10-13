@@ -11,47 +11,33 @@
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/angular-ui-bootstrap/0.13.4/ui-bootstrap-tpls.js"></script>
 		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" />
 		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap-theme.min.css" />
-		
-		<style>
-		 .node circle {
-		   fill: #fff;
-		   stroke: steelblue;
-		   stroke-width: 3px;
-		 }
-		 
-		 .node text { font: 12px sans-serif; }
-		 
-		 .link {
-		   fill: none;
-		   stroke: #ccc;
-		   stroke-width: 2px;
-		 }
-		</style>
 	</head>
 	<body ng-app="app" ng-controller="Ctrl as vm">
 	<nav class="navbar navbar-default">
-	  <div class="container-fluid">
-		<!-- Brand and toggle get grouped for better mobile display -->
-		<div class="navbar-header">
-		  <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
-			<span class="sr-only">Toggle navigation</span>
-			<span class="icon-bar"></span>
-			<span class="icon-bar"></span>
-			<span class="icon-bar"></span>
-		  </button>
-		</div>
+	    <div class="container-fluid">
+	        <!-- Brand and toggle get grouped for better mobile display -->
+	        <div class="navbar-header">
+	            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+	                <span class="sr-only">Toggle navigation</span>
+	                <span class="icon-bar"></span>
+	                <span class="icon-bar"></span>
+	                <span class="icon-bar"></span>
+	            </button>
+	        </div>
 
-		<!-- Collect the nav links, forms, and other content for toggling -->
-		<div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
-		  <ul class="nav navbar-nav">
-		    <li><a href="#" ng-click="vm.NewTree()"><span class="glyphicon glyphicon-file" aria-hidden="true"></span> New</a></li>
-            <li><a href="#" ng-click="vm.LoadFile($event)"><span class="glyphicon glyphicon-folder-open" aria-hidden="true"></span> Load</a></li>
-			<li><a href="#" ng-click="vm.SaveFile($event)"><span class="glyphicon glyphicon-floppy-save" aria-hidden="true"></span> Save</a></li>
-			<li><a href="#" ng-click="vm.DisplaySettings()"><span class="glyphicon glyphicon-cog" aria-hidden="true"></span> Display Settings</a></li>
-		  </ul>
-		</div><!-- /.navbar-collapse -->
-	  </div><!-- /.container-fluid -->
+	        <!-- Collect the nav links, forms, and other content for toggling -->
+	        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+	            <ul class="nav navbar-nav">
+	                <li><a href="#" ng-click="vm.NewTree()"><span class="glyphicon glyphicon-file" aria-hidden="true"></span> New</a></li>
+	                <li><a href="#" ng-click="vm.LoadFile($event)"><span class="glyphicon glyphicon-folder-open" aria-hidden="true"></span> Load</a></li>
+	                <li><a href="#" ng-click="vm.SaveFile($event)"><span class="glyphicon glyphicon-floppy-save" aria-hidden="true"></span> Save</a></li>
+	                <li><a href="#" ng-click="vm.ExportImage($event)"><span class="glyphicon glyphicon-picture" aria-hidden="true"></span> Export Image</a></li>
+	                <li><a href="#" ng-click="vm.DisplaySettings()"><span class="glyphicon glyphicon-cog" aria-hidden="true"></span> Display Settings</a></li>
+	            </ul>
+	        </div><!-- /.navbar-collapse -->
+	    </div><!-- /.container-fluid -->
 	</nav>
+    <div id="container"></div>
 	
 	<script type="text/ng-template" id="myModalContent.html">
         <div class="modal-header">
@@ -224,7 +210,7 @@
 	            animation: true,
 	            templateUrl: 'openFile.html',
 	            controller: 'ModalInstanceCtrl as vm',
-	            resolve: { currNode: function () { return treeData[0] } },
+	            resolve: { currNode: function () { return treeData[0] } }
 	        });
 
 	        modalInstance.result.then(function(selectedItem) {
@@ -254,12 +240,17 @@
 					else {return value;}
 					});
 
-		    self.FileDownloader("decisiontree.tree",json);
+		    self.FileDownloader("decisiontree.tree", json, 'text/plain');
 
 		    if (localStorage) {
 		        localStorage["tree"] = json;
 		    }
 		};
+
+		self.ExportImage = function (event) {
+		    var xml = main.SVG().node().parentNode.parentNode.innerHTML;
+		    self.FileDownloader("decisiontree.svg", xml, 'octet/stream');
+	    }; 
 		  
 		self.NewTree = function(){
 			treeData = [
@@ -276,7 +267,7 @@
 			main.RenderTree();
 		};
 
-		self.FileDownloader = function(fileNameToSaveAs, textToWrite) {
+		self.FileDownloader = function(fileNameToSaveAs, textToWrite, type) {
 	        var ie = navigator.userAgent.match(/MSIE\s([\d.]+)/),
 	            ie11 = navigator.userAgent.match(/Trident\/7.0/) && navigator.userAgent.match(/rv:11/),
 	            ieEDGE = navigator.userAgent.match(/Edge/g),
@@ -288,7 +279,7 @@
 	        }
 
 	        var textFileAsBlob = new Blob([textToWrite], {
-	            type: 'text/plain'
+	            type: type
 	        });
 
 	        if (ieVer > -1) {
@@ -375,17 +366,20 @@
 		var diagonal;
 		var i;
 		var rtn = {
-			Tree:function(){return tree;},
-			SetupD3 : function()
+		    Tree: function () { return tree; },
+            SVG: function() { return this.svg;  },
+		    SetupD3 : function()
 			{
 				var margin = {top: 20, right: 120, bottom: 20, left: 120}
 				this.width = 1024 - margin.right - margin.left,
 				this.height = 800 - margin.top - margin.bottom;
-				
-				this.svg = d3.select("body").append("svg")
-					.attr("width", this.width + margin.right + margin.left)
-					.attr("height", this.height + margin.top + margin.bottom)
-					.append("g")
+
+				this.svg = d3.select("#container").append("svg")
+                    .attr("version", 1.1)
+		            .attr("xmlns", "http://www.w3.org/2000/svg")
+			        .attr("width", this.width + margin.right + margin.left)
+			        .attr("height", this.height + margin.top + margin.bottom)
+                    .append("g")
 					.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 			},
 			
@@ -482,7 +476,7 @@
 				}
 
 				// Declare the nodes
-				var select = self.svg.selectAll("g.node")
+			    var select = self.svg.selectAll("g.node");
 				var node = select.data(nodes, function(d) 
 						{ 
 							if(d.Type!=="e"){
@@ -505,9 +499,8 @@
 					return self.TypeToShape(d.Type);
 				})
 				.size(300))
-				.attr("transform", function(d) 
-				{ 
-					var transform="translate(" + 2 + "," + -1 + ")"
+				.attr("transform", function(d) {
+				    var transform = "translate(" + 2 + "," + -1 + ")";
 					if (d.Type==="e")
 					{
 						transform = transform+" rotate(30)"; 
@@ -520,31 +513,34 @@
 
 				nodeEnter.append("text")
 				   .attr("class","name")
-				   .attr("x", "-25")
-				   .attr("y", "-20")
+				   .attr("x", "-10")
+				   .attr("y", "-10")
 				   .attr("dy", ".35em")
-				   .attr("text-anchor", "start")
-				   .text(function(d) { return d.name; })
+				   .attr("text-anchor", "end")
+				   .text(function (d) { return d.name; })
+                   .style("font", "12px sans-serif")
 				   .style("fill-opacity", 1);
 
 				nodeEnter.append("text")
 				   .attr("class","prob")
-				   .attr("x", "-20")
-				   .attr("y", "15")
+				   .attr("x", function(d) { return d.Type == "e" ? "15" : "-20"; })
+				   .attr("y", function(d) { return d.Type == "e" ? "10" : "30"; })
 				   .attr("dy", ".35em")
-				   .attr("text-anchor", "start")
-				   .text(function(d) { return "Prob: "+d.Probability; })
+				   .attr("text-anchor", function (d) { return d.Type == "e" ? "start" : "end"; })
+				   .text(function(d) { return d.Probability; })
 				   .style("fill-opacity", 1)
+                   .style("font", "12px sans-serif")
 				   .style("fill","green");
 
 
 				nodeEnter.append("text")
 				   .attr("class","expval")
-				   .attr("x", "-20")
-				   .attr("y", "25")
+				   .attr("x", function(d) { return d.Type == "e" ? "15" : "-20"; })
+				   .attr("y", function(d) { return d.Type == "e" ? "-5" : "15"; })
 				   .attr("dy", ".35em")
-				   .attr("text-anchor", "start")
-				   .text(function(d) { return "EV: "+d.ExpVal; })
+				   .attr("text-anchor", function(d) { return d.Type == "e" ? "start" : "end"; })
+				   .text(function (d) { return d.ExpVal; })
+                   .style("font", "12px sans-serif")
 				   .style("fill-opacity", 1);
 
 				   
@@ -558,9 +554,8 @@
 					return self.TypeToShape(d.Type);
 				})
 				.size(300))
-				.attr("transform", function(d) 
-				{ 
-					var transform="translate(" + 2 + "," + -1 + ")"
+				.attr("transform", function(d) {
+				    var transform = "translate(" + 2 + "," + -1 + ")";
 					if (d.Type==="e")
 					{
 						transform = transform+" rotate(30)"; 
@@ -580,12 +575,16 @@
 						  .text(function(d) { return d.name; })
 						  .style("fill-opacity", 1);
 
-				nodeUpdate.select(".prob")
-						  .text(function(d) { return d.Probability; })
+			    nodeUpdate.select(".prob")
+                          .attr("x", function (d) { return d.Type == "e" ? "15" : "-20"; })
+				          .attr("y", function (d) { return d.Type == "e" ? "10" : "30"; })
+						  .text(function (d) { return d.Probability; })
 						  .style("fill-opacity", 1);
 				
-				nodeUpdate.select(".expval")
-						  .text(function(d) { return d.ExpVal; })
+			    nodeUpdate.select(".expval")
+                          .attr("x", function (d) { return d.Type == "e" ? "15" : "-20"; })
+				          .attr("y", function (d) { return d.Type == "e" ? "-5" : "15"; })
+						  .text(function (d) { return d.ExpVal; })
 						  .style("fill-opacity", 1);
 						  
 				node.exit().remove();
@@ -595,12 +594,16 @@
 				.data(links, function(d) { return d.target.id; });
 
 				// Enter the links.
-				link.enter().insert("path", "g")
-				.attr("class", "link")
-				.attr("d", self.LineStyle(self.root.LineStyle))
-				.style("fill-opacity", function(d) { 
-					return d.id; 
-				});
+			    link.enter().insert("path", "g")
+			        .attr("class", "link")
+			        .attr("d", self.LineStyle(self.root.LineStyle))
+			        .style("fill", "none")
+                    .style("stroke", "#ccc")
+                    .style("stroke-width", "2px")
+				    .style("fill-opacity", function(d) { 
+					    return d.id; 
+				    });
+
 				
 				link.transition()
 				.attr("d", self.LineStyle(self.root.LineStyle));
