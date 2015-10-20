@@ -1,0 +1,15 @@
+CACHE MANIFEST
+# v0.1
+
+CACHE:
+index.html
+//ajax.aspnetcdn.com/ajax/jQuery/jquery-1.11.3.min.js
+//d3js.org/d3.v3.min.js
+//ajax.googleapis.com/ajax/libs/angularjs/1.4.6/angular.min.js
+//maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js
+//cdnjs.cloudflare.com/ajax/libs/angular-ui-bootstrap/0.13.4/ui-bootstrap-tpls.js
+//maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css
+//maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap-theme.min.css
+//maxcdn.bootstrapcdn.com/bootstrap/3.3.5/fonts/glyphicons-halflings-regular.woff2
+//maxcdn.bootstrapcdn.com/bootstrap/3.3.5/fonts/glyphicons-halflings-regular.woff
+//maxcdn.bootstrapcdn.com/bootstrap/3.3.5/fonts/glyphicons-halflings-regular.ttf
