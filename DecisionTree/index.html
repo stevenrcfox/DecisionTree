@@ -1,14 +1,15 @@
 ﻿<!DOCTYPE html>
-<html lang="en" manifest="/cache.manifest">
+<html lang="en">
 	<head>
 		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
 		<meta charset="utf-8">
 		<title>Decision Tree</title>
 		<script src="//ajax.aspnetcdn.com/ajax/jQuery/jquery-1.11.3.min.js"></script>
-		<script src="//d3js.org/d3.v3.min.js"></script>
+		<script src="//d3js.org/d3.v5.min.js"></script>
 		<script src="//ajax.googleapis.com/ajax/libs/angularjs/1.4.6/angular.min.js"></script>
 		<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
 		<script src="//cdnjs.cloudflare.com/ajax/libs/angular-ui-bootstrap/0.13.4/ui-bootstrap-tpls.js"></script>
+		<script src="//cdnjs.cloudflare.com/ajax/libs/babel-polyfill/7.7.0/polyfill.js"></script>
 		<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" />
 		<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap-theme.min.css" />
 	</head>
@@ -33,6 +34,7 @@
 	                <li><a href="#" ng-click="vm.SaveFile($event)"><span class="glyphicon glyphicon-floppy-save" aria-hidden="true"></span> Save</a></li>
 	                <li><a href="#" ng-click="vm.ExportImage($event)"><span class="glyphicon glyphicon-picture" aria-hidden="true"></span> Export Image</a></li>
 	                <li><a href="#" ng-click="vm.DisplaySettings()"><span class="glyphicon glyphicon-cog" aria-hidden="true"></span> Display Settings</a></li>
+					<li><a href="#" ng-click="vm.FindLeaf()"><span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Display Settings</a></li>
 	            </ul>
 	        </div><!-- /.navbar-collapse -->
 	    </div><!-- /.container-fluid -->
@@ -46,26 +48,26 @@
         <div class="modal-body">
 			<div class="form-group">
 				<label>Node Name</label>
-				<input type="text" class="form-control" placeholder="Name" ng-model="vm.currNode.name" />
+				<input type="text" class="form-control" placeholder="Name" ng-model="vm.currNode.data.name" />
 			</div>
 
-			<div class="form-group" ng-show="{{!vm.currNode.TreeStyle}}">
+			<div class="form-group" ng-show="{{!vm.currNode.data.TreeStyle}}">
 				<label>Type</label>
-				<select ng-model="vm.currNode.Type" class="form-control">
-					<option value="d" ng-selected="vm.currNode.Type=='d'" ng-if="(vm.currNode.children&&(vm.currNode.children.length>0))">Decision</option>
-					<option value="c" ng-selected="vm.currNode.Type=='c'" ng-if="(vm.currNode.children&&(vm.currNode.children.length>0))">Chance</option>
-					<option value="e" ng-selected="vm.currNode.Type=='e'" ng-if="!(vm.currNode.children&&(vm.currNode.children.length>0))">End</option>
+				<select ng-model="vm.currNode.data.Type" class="form-control">
+					<option value="d" ng-selected="vm.currNode.data.Type=='d'" ng-if="(vm.currNode.children&&(vm.currNode.children.length>0))">Decision</option>
+					<option value="c" ng-selected="vm.currNode.data.Type=='c'" ng-if="(vm.currNode.children&&(vm.currNode.children.length>0))">Chance</option>
+					<option value="e" ng-selected="vm.currNode.data.Type=='e'" ng-if="!(vm.currNode.children&&(vm.currNode.children.length>0))">End</option>
 				</select>
 			</div>
 
-			<div class="form-group" ng-show="{{vm.currNode.parent.Type=='c'}}">
+			<div class="form-group" ng-show="{{vm.currNode.parent.data.Type=='c'}}">
 				<label>Probability</label>
-				<input type="number" class="form-control" placeholder="Probability" ng-model="vm.currNode.Probability" />
+				<input type="number" class="form-control" placeholder="Probability" ng-model="vm.currNode.data.Probability" />
 			</div>
 
-			<div class="form-group" ng-show="{{vm.currNode.Type=='e'}}">
+			<div class="form-group" ng-show="{{vm.currNode.data.Type=='e'}}">
 				<label>Value</label>
-				<input type="number" class="form-control" placeholder="Value" ng-model="vm.currNode.ExpVal" />
+				<input type="number" class="form-control" placeholder="Value" ng-model="vm.currNode.data.ExpVal" />
 			</div>
         </div>
         <div class="modal-footer">
@@ -127,6 +129,7 @@
 
 	<script>
 	var treeData=null;
+	var profileBuilder=null;
 	if(localStorage&&localStorage.getItem("tree"))
 	{
 		treeData=JSON.parse(localStorage.getItem("tree"));
@@ -151,16 +154,50 @@
 
 	function CalcEV(node)
 	{
-		switch(node.Type) {
+		switch(node.data.Type) {
 			case("c"):
 				var sum=0;
-				sum=(!node.children)?0:node.children.reduce(function(val,elem){return val+elem.ExpVal*elem.Probability},0);
+				sum=(!node.children)?0:node.children.reduce(function(val,elem)
+				{
+					return val+elem.data.ExpVal*elem.data.Probability
+				},0);
 				return sum;
 			break;
 			case("d"):
 				var max=0;
-				max=(!node.children)?0:node.children.reduce(function(val,elem){return elem.ExpVal>val?elem.ExpVal:val;},0);
+				max=(!node.children)?0:node.children.reduce(function(val,elem)
+				{
+					return elem.data.ExpVal>val?elem.data.ExpVal:val;
+				},0);
 				return max;
+			break;
+		}
+	}
+
+	function GetLeafNodes(node,leaves)
+	{
+		switch(node.Type) {
+			case("c"):
+				node.children&&node.children.forEach(function(x){GetLeafNodes(x,leaves)});
+			break;
+			case("d"):
+				node.children&&node.children.forEach(function(x){GetLeafNodes(x,leaves)});
+			break;
+			case("e"):
+				leaves.push(node);
+				var probability=node.Probability;
+				var parent=node.parent;
+				var choices="";
+				while(parent)
+				{
+					probability=(parent.Probability?probability*parent.Probability:probability);
+					if(parent.parent&&parent.parent.Type=="d"){
+						choices=choices.concat(parent.name);
+					}
+					parent=parent.parent;
+				}
+				node.finalProbability=probability;
+				node.choices=choices;
 			break;
 		}
 	}	
@@ -170,6 +207,19 @@
 	var ctrl = function ($scope,$modal) {
 		var self = this;
 		self.title = 'Some title';
+		
+		self.FindLeaf = function(){
+			var leafslist=[]
+			GetLeafNodes(treeData[0],leafslist);
+			leafslist.sort(function(a,b){return a.ExpVal-b.ExpVal;});
+			var splitlist= leafslist.reduce(function (r,a){
+				r[a.choices]=r[a.choices]||[];
+				r[a.choices].push(a);
+				return r;
+			},Object.create(null));
+			profileBuilder=splitlist;
+			main.RenderProfile();
+		};
 		
 		self.Open = function (item, size) {
 			self.currNode=item;
@@ -219,8 +269,9 @@
 	                reader.onload = (function(file) {
                         return function(e) {
                             treeData = JSON.parse(e.target.result);
+							treeData[0].TreeStyle=treeData[0].TreeStyle||"tree";
                             main.SetupTree();
-                            main.RenderTree(self.currNode);
+                            main.RenderTree(treeData[0]);
                         }
 	                })(selectedItem);
 	                reader.readAsText(selectedItem);
@@ -232,8 +283,8 @@
 		  
 		self.SaveFile = function (event){
 		
-		    var json = JSON.stringify(treeData,function( key, value) {
-					if( key == 'parent') { return value.name;}
+		    var json = JSON.stringify(treeData.data,function( key, value) {
+					if( key == 'parent') { return undefined;}
 					else if( key == 'depth') { return undefined;}
 					else if( key == 'x') { return undefined;}
 					else if( key == 'y') { return undefined;}
@@ -321,19 +372,7 @@
         };
 		
 		this.AddChild = function () {
-		    var treeNode = main.tree.nodes(this.currNode)[0];
-			if(!treeNode.children){ treeNode.children=[];}
-			var newChild = {
-				"name": "NewNode",
-				"parent": this.currNode.name,
-				"Probability":null,
-				"ExpVal":null,
-				"Type":"e",
-				"x":treeNode.x,
-				"y":treeNode.y
-			};
-			treeNode.Type = treeNode.Type == "e"?"c":treeNode.Type;
-			treeNode.children.push(newChild);
+			main.AddChild(this.currNode);
 		};
 	};
 	
@@ -362,8 +401,8 @@
 		var width;
 		var root;
 		var tree;
+		var treeHeir;
 		var svg;
-		var diagonal;
 		var i;
 		var rtn = {
 		    Tree: function () { return tree; },
@@ -384,12 +423,10 @@
 			},
 			
 			SetupTree : function(){
+				this.treeHeir=null;
 				this.tree = this.TreeStyle(treeData[0].TreeStyle)
 					.size([this.height, this.width]);
 					//.separation(function(){return 2;});
-
-				this.diagonal = d3.svg.diagonal()
-					.projection(function(d) { return [d.y, d.x]; });
 
 				this.root = treeData[0];
 				
@@ -403,11 +440,11 @@
 				switch(type)
 				{
 					case "e":
-						return "triangle-up";
+						return "symbolTriangle";
 					case "d":
-						return "square";
+						return "symbolSquare";
 					case "c":
-						return "circle";
+						return "symbolCircle";
 				}
 			},
 			
@@ -424,16 +461,27 @@
 				}
 			},
 			
-			AngleElbow : function (d, i) 
+			AngleElbow : function (d) 
 			{
 				return "M" + (d.source.y+10) + "," + d.source.x
 				+ "L" + (d.source.y+50)+","+d.target.x + "H" + d.target.y;
 			},
 			
-			SquareElbow : function (d, i) 
+			SquareElbow : function (d) 
 			{
 				return "M" + d.source.y + "," + d.source.x
 				+ "V" + d.target.x+"H" + d.target.y;
+			},
+			
+			Curve : function (d)
+			{
+				return d3.linkHorizontal()
+				.x(function(d){
+					return d.x;
+				})
+				.y(function(d){
+					return d.y;
+				});
 			},
 			
 			TreeStyle:function(style)
@@ -441,9 +489,9 @@
 				switch(style)
 				{
 					case "tree":
-						return d3.layout.tree();
+						return d3.tree();
 					case "cluster":
-						return d3.layout.cluster();
+						return d3.cluster();
 				}
 			},
 			
@@ -456,19 +504,109 @@
 					case "s":
 						return this.SquareElbow;
 					case "c":
-						return this.diagonal;
+						return d3.linkHorizontal()
+						.x(function(d){
+							return d.y;
+						})
+						.y(function(d){
+							return d.x;
+						});;
 				}
 			},
 			
+			AddChild: function (currnode) 
+			{
+				var self=this;
+				
+				if(!currnode.children){
+					currnode.children=[];
+				}
+				
+				currnode.data.Type = currnode.data.Type == "e"?"c":currnode.data.Type;
+				
+				treeData[0].children.push({
+						"name": "NewNode",
+						"parent": currnode.name,
+						"Probability":null,
+						"ExpVal":null,
+						"Type":"e"
+					});
+				
+				var child =Object.assign(new d3.hierarchy.prototype.constructor, 
+				{
+					"data":{
+						"name": "NewNode",
+						"parent": currnode.name,
+						"Probability":null,
+						"ExpVal":null,
+						"Type":"e"
+						//"x":treeNode.x,
+						//"y":treeNode.y
+					},
+					"parent":currnode,
+					"depth":currnode.depth+1
+				});
+				
+				
+				
+				//currnode.children.push(child);
+				//self.tree.nodes.push(child);
+				//self.tree.links.push({source: currnode, target: child});
+				//self.RenderTree();
+				
+				
+			},
 			
+			RenderProfile: function(parent) {
+				var self=this;
+				
+				var x = d3.scaleLinear()
+						.domain([0, 26000000]).nice()
+					.range([height - margin.bottom, margin.top])
+						
+				var y = d3.scaleLinear()
+					.domain([0, 1]).nice()
+					.range([height - margin.bottom, margin.top])
+				
+				self.svg.append("g").attr("transform", 'translate(0,${height - margin.bottom})')
+				.call(d3.axisBottom(x).ticks(width / 80).tickSizeOuter(0))
+				
+				
+				self.svg.append("g").attr("transform", 'translate(${margin.left},0)')
+				.call(d3.axisLeft(y))
+				.call(function(g){ return g.select(".domain").remove();})
+				.call(function(g){ return g.select(".tick:last-of-type text").clone()
+					.attr("x", 3)
+					.attr("text-anchor", "start")
+					.attr("font-weight", "bold")
+				.text(data.y);})
+				
+				const path = self.svg.append("g")
+				  .attr("fill", "none")
+				  .attr("stroke", "steelblue")
+				  .attr("stroke-width", 1.5)
+				  .attr("stroke-linejoin", "round")
+				  .attr("stroke-linecap", "round")
+				.selectAll("path")
+				.data(data.series)
+				.join("path")
+				  .style("mix-blend-mode", "multiply")
+				  .attr("d", function(d){ return line(d.values);});
+			},
 			
 			RenderTree : function(parent) {
 				var self = this;
 				
 				
 				// Compute the new tree layout.
-				var nodes = self.tree.nodes(self.root).reverse(),
-				links = self.tree.links(nodes);
+				self.treeHeir=self.treeHeir||d3.hierarchy(self.root);
+				self.treelayout=self.tree(self.treeHeir);
+				const nodes = self.treelayout.descendants();
+				const links = self.treelayout.links();
+				//treeData=self.treeHeir;
+				
+				self.tree.nodes=nodes;
+				self.tree.links=links;
 
 				if(self.root.TreeStyle=="tree"){
 					// Normalize for fixed-depth.
@@ -479,8 +617,8 @@
 			    var select = self.svg.selectAll("g.node");
 				var node = select.data(nodes, function(d) 
 						{ 
-							if(d.Type!=="e"){
-								d.ExpVal=function(){return CalcEV(d);}();
+							if(d.data.Type!=="e"){
+								d.data.ExpVal=function(){return CalcEV(d);}();
 							}
 							var nodeid=d.id || (d.id = ++self.i);
 							self.root.maxId=nodeid>self.root.maxId?nodeid:self.root.maxId;
@@ -491,24 +629,24 @@
 				var nodeEnter = node.enter().append("g")
 				.attr("class", "node")
 				.attr("transform", function(d) { 
-				return "translate(" + d.y + "," + d.x + ")"; });
+					return "translate(" + d.y + "," + d.x + ")"; }
+				);
 
 				nodeEnter.append('path')
-				.attr("d", d3.svg.symbol().type(function(d)
+				.attr("d", function(d)
 				{
-					return self.TypeToShape(d.Type);
+					return d3.symbol().size(300).type(d3[self.TypeToShape(d.data.Type)])();
 				})
-				.size(300))
 				.attr("transform", function(d) {
 				    var transform = "translate(" + 2 + "," + -1 + ")";
-					if (d.Type==="e")
+					if (d.data.Type==="e")
 					{
 						transform = transform+" rotate(30)"; 
 					}
 					return transform;
 				})
 				.style("fill", function(d){
-					return self.TypeToColour(d.Type);
+					return self.TypeToColour(d.data.Type);
 				});
 
 				nodeEnter.append("text")
@@ -517,17 +655,17 @@
 				   .attr("y", "-10")
 				   .attr("dy", ".35em")
 				   .attr("text-anchor", "end")
-				   .text(function (d) { return d.name; })
+				   .text(function (d) { return d.data.name; })
                    .style("font", "12px sans-serif")
 				   .style("fill-opacity", 1);
 
 				nodeEnter.append("text")
 				   .attr("class","prob")
-				   .attr("x", function(d) { return d.Type == "e" ? "15" : "-20"; })
-				   .attr("y", function(d) { return d.Type == "e" ? "10" : "30"; })
+				   .attr("x", function(d) { return d.data.Type == "e" ? "15" : "-20"; })
+				   .attr("y", function(d) { return d.data.Type == "e" ? "10" : "30"; })
 				   .attr("dy", ".35em")
-				   .attr("text-anchor", function (d) { return d.Type == "e" ? "start" : "end"; })
-				   .text(function(d) { return d.Probability; })
+				   .attr("text-anchor", function (d) { return d.data.Type == "e" ? "start" : "end"; })
+				   .text(function(d) { return d.data.Probability; })
 				   .style("fill-opacity", 1)
                    .style("font", "12px sans-serif")
 				   .style("fill","green");
@@ -535,11 +673,11 @@
 
 				nodeEnter.append("text")
 				   .attr("class","expval")
-				   .attr("x", function(d) { return d.Type == "e" ? "15" : "-20"; })
-				   .attr("y", function(d) { return d.Type == "e" ? "-5" : "15"; })
+				   .attr("x", function(d) { return d.data.Type == "e" ? "15" : "-20"; })
+				   .attr("y", function(d) { return d.data.Type == "e" ? "-5" : "15"; })
 				   .attr("dy", ".35em")
-				   .attr("text-anchor", function(d) { return d.Type == "e" ? "start" : "end"; })
-				   .text(function (d) { return d.ExpVal; })
+				   .attr("text-anchor", function(d) { return d.data.Type == "e" ? "start" : "end"; })
+				   .text(function (d) { return d.data.ExpVal; })
                    .style("font", "12px sans-serif")
 				   .style("fill-opacity", 1);
 
@@ -549,11 +687,10 @@
 				});
 				
 				node.select("path")
-				.attr("d", d3.svg.symbol().type(function(d)
+				.attr("d", function(d)
 				{
-					return self.TypeToShape(d.Type);
+					return d3.symbol().size(300).type(d3[self.TypeToShape(d.data.Type)])();
 				})
-				.size(300))
 				.attr("transform", function(d) {
 				    var transform = "translate(" + 2 + "," + -1 + ")";
 					if (d.Type==="e")
@@ -563,7 +700,7 @@
 					return transform;
 				})
 				.style("fill", function(d){
-					return self.TypeToColour(d.Type);
+					return self.TypeToColour(d.data.Type);
 				});
 				
 				var nodeUpdate = node.transition();
@@ -572,19 +709,19 @@
 				return "translate(" + d.y + "," + d.x + ")"; });
 				
 				nodeUpdate.select(".name")
-						  .text(function(d) { return d.name; })
+						  .text(function(d) { return d.data.name; })
 						  .style("fill-opacity", 1);
 
 			    nodeUpdate.select(".prob")
-                          .attr("x", function (d) { return d.Type == "e" ? "15" : "-20"; })
-				          .attr("y", function (d) { return d.Type == "e" ? "10" : "30"; })
-						  .text(function (d) { return d.Probability; })
+                          .attr("x", function (d) { return d.data.Type == "e" ? "15" : "-20"; })
+				          .attr("y", function (d) { return d.data.Type == "e" ? "10" : "30"; })
+						  .text(function (d) { return d.data.Probability; })
 						  .style("fill-opacity", 1);
 				
 			    nodeUpdate.select(".expval")
-                          .attr("x", function (d) { return d.Type == "e" ? "15" : "-20"; })
-				          .attr("y", function (d) { return d.Type == "e" ? "-5" : "15"; })
-						  .text(function (d) { return d.ExpVal; })
+                          .attr("x", function (d) { return d.data.Type == "e" ? "15" : "-20"; })
+				          .attr("y", function (d) { return d.data.Type == "e" ? "-5" : "15"; })
+						  .text(function (d) { return d.data.ExpVal; })
 						  .style("fill-opacity", 1);
 						  
 				node.exit().remove();
@@ -596,7 +733,7 @@
 				// Enter the links.
 			    link.enter().insert("path", "g")
 			        .attr("class", "link")
-			        .attr("d", self.LineStyle(self.root.LineStyle))
+			        .attr("d", function(d){return self.LineStyle(self.root.LineStyle)(d) })
 			        .style("fill", "none")
                     .style("stroke", "#ccc")
                     .style("stroke-width", "2px")
