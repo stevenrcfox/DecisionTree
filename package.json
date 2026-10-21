@@ -1,0 +1,5 @@
+{
+  "name": "decisiontree",
+  "private": true,
+  "scripts": { "test": "node --test" }
+}
