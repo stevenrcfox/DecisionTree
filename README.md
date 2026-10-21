@@ -21,6 +21,21 @@ Clone or download this repository, then serve the `DecisionTree/` directory with
 4. Open **Risk Profile** to explore the distribution of outcomes across choices.
 5. Choose **Save** to download your tree, **Load** to reopen one, or **Export Image** to download an SVG.
 
+## Guided example
+
+Choose **Demo / walkthrough** to load a job-and-commute example and start an
+optional guided tour. Compare annual take-home income minus travel costs, edit
+probabilities, resolve a validation error, and add a Car alternative with two
+outcomes before comparing risk profiles. All figures are illustrative; travel
+time is not priced.
+
+**Skip walkthrough** leaves the example open for exploration. **Back** revisits
+an earlier example state. **Return to my tree** restores your previous work,
+including unsaved edits; reloading during the demo also restores it using a
+temporary copy in session storage. **Download example** saves a `.tree` file
+without replacing your normal saved tree. New and Load are unavailable until
+you return. Restart resets only the example.
+
 ## Saving your work
 
 **Save** downloads a `.tree` file and also stores the tree in the browser's local storage. The app attempts to restore that saved tree when reopened in the same browser and site. Keep downloaded copies of work you want to retain: browser storage can be cleared and does not sync across devices.
