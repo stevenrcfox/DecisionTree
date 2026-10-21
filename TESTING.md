@@ -49,3 +49,21 @@ strategy counts leave the decision unmarked. Markings do not delete or prune dat
 Enumeration is limited to 256 strategies per subtree to bound combinatorial
 growth. The chart reports the limit instead of silently dropping strategies;
 recommendations for an over-limit decision are omitted.
+
+## Job walkthrough
+
+Choose Demo / walkthrough. Follow the 14 steps, including actual edits and adding
+Car with two outcomes. The final three profiles have EVs £35,000 (Nearby), £38,000
+(Train), and £39,400 (Car). Train and Car cross, so neither is marked dominant.
+Check Back, Skip, Finish, Restart, and window resizing. Popup targets should
+follow SVG groups and the node editor without covering its form controls.
+
+Before starting, give your own tree a distinctive unsaved name. Verify Return
+to my tree restores it; repeat with a page reload during the tour. Downloading
+the example must not overwrite the normal local-storage tree. Test blocked/full
+session storage: demo entry should fail before switching trees. New/Load must
+remain disabled while demo mode is active.
+
+The tour uses the vendored MIT-licensed Driver.js 1.3.6; no new CDN or build step
+is needed. Unit tests cover sample values, crossing distributions, isolated
+restarts, reload recovery, and storage failures.

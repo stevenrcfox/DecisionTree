@@ -1,0 +1,7 @@
+.driver-popover.job-tour { max-width: 350px; }
+.job-tour .driver-popover-description { line-height: 1.5; }
+.job-tour .driver-popover-footer button { margin: 4px 2px; }
+#tour-step-error { color: #b00020; font-weight: bold; margin-top: 8px; }
+#demo-controls { margin: 12px 15px; padding: 12px; border: 1px solid #89b6d1; background: #eef7fc; }
+#demo-controls p { margin-bottom: 8px; }
+#container { overflow-x: auto; }

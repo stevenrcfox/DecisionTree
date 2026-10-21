@@ -5,6 +5,10 @@
 		<meta charset="utf-8">
 		<title>Decision Tree</title>
 		<script src="analysis.js"></script>
+		<script src="vendor/driver/dist/driver.js.iife.js"></script>
+		<script src="job-demo.js"></script>
+		<link rel="stylesheet" href="vendor/driver/dist/driver.css" />
+		<link rel="stylesheet" href="walkthrough.css" />
 		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.4.6/angular.min.js"></script>
@@ -30,16 +34,26 @@
 	        <!-- Collect the nav links, forms, and other content for toggling -->
 	        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
 	            <ul class="nav navbar-nav">
-	                <li><a href="#" ng-click="vm.NewTree()"><span class="glyphicon glyphicon-file" aria-hidden="true"></span> New</a></li>
-	                <li><a href="#" ng-click="vm.LoadFile($event)"><span class="glyphicon glyphicon-folder-open" aria-hidden="true"></span> Load</a></li>
+	                <li ng-class="{disabled:vm.demoActive}"><a href="#" ng-click="!vm.demoActive && vm.NewTree()" ng-attr-aria-disabled="{{vm.demoActive}}"><span class="glyphicon glyphicon-file" aria-hidden="true"></span> New</a></li>
+	                <li ng-class="{disabled:vm.demoActive}"><a href="#" ng-click="!vm.demoActive && vm.LoadFile($event)" ng-attr-aria-disabled="{{vm.demoActive}}"><span class="glyphicon glyphicon-folder-open" aria-hidden="true"></span> Load</a></li>
 	                <li><a href="#" ng-click="vm.SaveFile($event)"><span class="glyphicon glyphicon-floppy-save" aria-hidden="true"></span> Save</a></li>
 	                <li><a href="#" ng-click="vm.ExportImage($event)"><span class="glyphicon glyphicon-picture" aria-hidden="true"></span> Export Image</a></li>
 	                <li><a href="#" ng-click="vm.DisplaySettings()"><span class="glyphicon glyphicon-cog" aria-hidden="true"></span> Display Settings</a></li>
-					<li><a href="#" ng-click="vm.RiskProfile()"><span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Risk Profile</a></li>
+					<li><a id="risk-profile-menu" href="#" ng-click="vm.RiskProfile()"><span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Risk Profile</a></li>
+					<li><a href="#" ng-click="vm.StartDemo()"><span class="glyphicon glyphicon-education" aria-hidden="true"></span> Demo / walkthrough</a></li>
 	            </ul>
 	        </div><!-- /.navbar-collapse -->
 	    </div><!-- /.container-fluid -->
 	</nav>
+    <p class="alert alert-warning" role="alert" ng-if="vm.demoError">{{vm.demoError}}</p>
+    <section id="demo-controls" ng-if="vm.demoActive" aria-label="Job example controls">
+        <strong>Job and commute example · annual net income (£)</strong>
+        <p>Illustrative figures: take-home income minus commuting costs. Travel time is not priced.
+            Your previous tree is protected; returning or reloading restores it.</p>
+        <button type="button" class="btn btn-primary btn-sm" ng-click="vm.EndDemo()">Return to my tree</button>
+        <button type="button" class="btn btn-default btn-sm" ng-click="vm.SaveFile()">Download example</button>
+        <button type="button" class="btn btn-default btn-sm" ng-click="vm.StartDemo()">Restart example and walkthrough</button>
+    </section>
     <p class="text-muted" style="margin: 0 15px">⚠ Red outlines indicate invalid or incomplete branches; hover or click a node for details.
         Bold branches have higher EV and a dominant risk profile; × marks dominated alternatives.</p>
     <div id="container"></div>
@@ -53,8 +67,8 @@
 				<ul><li ng-repeat="issue in vm.issues() track by $index">{{issue}}</li></ul>
 			</div>
 			<div class="form-group">
-				<label>Node Name</label>
-				<input type="text" class="form-control" placeholder="Name" ng-model="vm.currNode.data.name" />
+				<label for="node-name">Node Name</label>
+				<input id="node-name" type="text" class="form-control" placeholder="Name" ng-model="vm.currNode.data.name" />
 			</div>
 
 			<div class="form-group" ng-show="!vm.currNode.data.TreeStyle">
@@ -67,14 +81,14 @@
 			</div>
 
 			<div class="form-group" ng-show="vm.currNode.parent && vm.currNode.parent.data.Type=='c'">
-				<label>Probability</label>
-				<input type="number" min="0" max="1" step="any" class="form-control" placeholder="Probability" ng-model="vm.currNode.data.Probability" />
+				<label for="node-probability">Probability</label>
+				<input id="node-probability" type="number" min="0" max="1" step="any" class="form-control" placeholder="Probability" ng-model="vm.currNode.data.Probability" />
 				<p class="help-block">Use 0 to 1. Probabilities under the same chance node must total 1.</p>
 			</div>
 
 			<div class="form-group" ng-show="vm.currNode.data.Type=='e'">
-				<label>Value</label>
-				<input type="number" step="any" class="form-control" placeholder="Value" ng-model="vm.currNode.data.ExpVal" />
+				<label for="node-value">Value</label>
+				<input id="node-value" type="number" step="any" class="form-control" placeholder="Value" ng-model="vm.currNode.data.ExpVal" />
 			</div>
         </div>
         <div class="modal-footer">
@@ -148,16 +162,18 @@
 
 
 	<script>
-	var treeData=null;
+	var demoStorage;
+	try { demoStorage = window.sessionStorage; } catch (error) { demoStorage = null; }
+	var treeData=JobDemo.recover(demoStorage);
 	var profileBuilder=null;
-	if(localStorage&&localStorage.getItem("tree"))
+	if(!treeData && localStorage&&localStorage.getItem("tree"))
 	{
 		treeData=JSON.parse(localStorage.getItem("tree"));
 		if(!treeData[0].TreeStyle){
 			treeData[0].TreeStyle="tree";
 			treeData[0].LineStyle="a";
 		}
-	}else
+	}else if (!treeData)
 	{
 		treeData=[
 		  {
@@ -189,6 +205,77 @@
 	var ctrl = function ($scope,$modal) {
 		var self = this;
 		self.title = 'Some title';
+		var demoSession = JobDemo.session(demoStorage);
+		var demoGeneration = 0;
+		self.demoActive = false;
+		self.demoRunning = false;
+		function runInScope(action) {
+			return new Promise(function (resolve, reject) {
+				$scope.$evalAsync(function () { try { resolve(action()); } catch (error) { reject(error); } });
+			});
+		}
+		function laidOut() { return new Promise(function (resolve) { requestAnimationFrame(function () { requestAnimationFrame(resolve); }); }); }
+		function closeDemoEditor() {
+			return runInScope(function () {
+				var modal = self.activeEditor;
+				if (!modal) return;
+				modal.close('ok');
+				return modal.result;
+			}).then(laidOut);
+		}
+		self.StartDemo = function () {
+			var generation = ++demoGeneration;
+			if (!window.driver || !window.driver.js) { self.demoError = 'The walkthrough could not load. Your current tree has not been changed. Please reload and try again.'; return; }
+			if (self.demoRunning) self.demoTour.destroy();
+			if (self.activeEditor) self.activeEditor.close('ok');
+			try { treeData = demoSession.begin(treeData); }
+			catch (error) { self.demoError = 'Could not protect your current tree. ' + error.message; return; }
+			self.demoError = '';
+			self.demoActive = true;
+			main.demoLayout = true;
+			main.SetupTree(); main.RenderTree();
+			self.demoTour = JobDemo.createTour(window.driver.js.driver, {
+				tree: function () { return treeData; },
+				restore: function (json) { return runInScope(function () { if (!self.demoActive || generation !== demoGeneration) return; treeData = JSON.parse(json); main.SetupTree(); main.RenderTree(); }).then(laidOut); },
+				edit: function (id) {
+					return runInScope(function () {
+						if (!self.demoActive || !self.demoRunning || generation !== demoGeneration) throw new Error('The walkthrough has ended.');
+						main.SetupTree(); main.RenderTree();
+						var node = main.treeHeir.descendants().find(function (d) { return d.data.identifier === id; });
+						if (!node) throw new Error('That example node is missing. Restart the example to try again.');
+						return self.Open(node).rendered;
+					}).then(laidOut);
+				},
+				closeEditor: closeDemoEditor,
+				risk: function () { return runInScope(function () { if (!self.demoActive || !self.demoRunning || generation !== demoGeneration) throw new Error('The walkthrough has ended.'); var modal = self.RiskProfile(); if (!modal) throw new Error('Correct the red branches before viewing risk profiles.'); return modal.rendered; }).then(laidOut); },
+				message: function (message) { var target = document.getElementById('tour-step-error'); if (target) target.textContent = message; },
+				stopped: function () { $scope.$evalAsync(function () { if (generation === demoGeneration) self.demoRunning = false; }); }
+			});
+			main.onRendered = function () {
+				requestAnimationFrame(function () {
+					var tour = self.demoTour;
+					if (generation !== demoGeneration || !tour || !tour.isActive()) return;
+					var target = tour.getActiveElement();
+					if (target && !target.isConnected) tour.drive(tour.getActiveIndex());
+					else tour.refresh();
+				});
+			};
+			self.demoRunning = true;
+			laidOut().then(function () { if (self.demoRunning && generation === demoGeneration) self.demoTour.drive(); });
+		};
+		self.EndDemo = function () {
+			demoGeneration++;
+			self.demoRunning = false;
+			if (self.demoTour) self.demoTour.destroy();
+			closeDemoEditor().then(function () { return runInScope(function () {
+				var original = demoSession.end();
+				if (original) treeData = original;
+				self.demoActive = false; self.demoRunning = false;
+				main.demoLayout = false;
+				main.onRendered = null;
+				main.SetupTree(); main.RenderTree();
+			}); }).catch(function (error) { $scope.$evalAsync(function () { self.demoError = error.message; }); });
+		};
 		$scope.$watch(function () {
 			return JSON.stringify(DecisionAnalysis.analyze(treeData[0]).issues);
 		}, function (issues) {
@@ -206,7 +293,7 @@
 		self.Open = function (item, size) {
 			self.currNode=item;
 			var modalInstance = $modal.open({
-			  animation: true,
+			  animation: !self.demoActive,
 			  templateUrl: 'myModalContent.html',
 			  controller: 'ModalInstanceCtrl as vm',
 			  size: size,
@@ -214,11 +301,15 @@
 			});
 
 			modalInstance.result.then(function (selectedItem) {
+				if (self.activeEditor === modalInstance) self.activeEditor = null;
 			    main.SetupTree();
 				main.RenderTree(self.currNode);
 			}, function () {
-			  
+				if (self.activeEditor === modalInstance) self.activeEditor = null;
+				main.SetupTree(); main.RenderTree();
 			});
+			self.activeEditor = modalInstance;
+			return modalInstance;
 		  };
 		  
 		  self.RiskProfile = function () {
@@ -228,7 +319,7 @@
 			try { profiles = DecisionAnalysis.strategies(treeData[0]); }
 			catch (error) { profileError = error.message; }
 			var modalInstance = $modal.open({
-			  animation: true,
+			  animation: !self.demoActive,
 			  templateUrl: 'riskProfile.html',
 			  controller: 'ModalInstanceCtrl as vm',
 			  size:'lg',
@@ -239,6 +330,9 @@
 				if (profileError) d3.select('#risklegend').append('p').attr('role', 'alert').text(profileError);
 				else self.RenderRiskProfile(profiles);
 			});
+			self.activeEditor = modalInstance;
+			modalInstance.result.then(function () { if (self.activeEditor === modalInstance) self.activeEditor = null; }, function () { if (self.activeEditor === modalInstance) self.activeEditor = null; });
+			return modalInstance;
 		  };
 		  
 		  self.RenderRiskProfile = function(profiles) {
@@ -326,9 +420,9 @@
 					else {return value;}
 					});
 
-		    self.FileDownloader("decisiontree.tree", json, 'text/plain');
+		    self.FileDownloader(self.demoActive ? "job-and-commute-example.tree" : "decisiontree.tree", json, 'text/plain');
 
-		    if (localStorage) {
+		    if (!self.demoActive && localStorage) {
 		        localStorage["tree"] = json;
 		    }
 		};
@@ -597,7 +691,7 @@
 
 				if(self.root.TreeStyle=="tree"){
 					// Normalize for fixed-depth.
-					nodes.forEach(function(d) { d.y = d.depth * 120; });
+					nodes.forEach(function(d) { d.y = d.depth * (self.demoLayout ? 210 : 120); });
 				}
 
 				// Declare the nodes
@@ -732,6 +826,7 @@
 				link.exit().remove();
 				// Style the merged selections so new and edited nodes behave alike.
 				var allNodes = self.svg.selectAll('g.node');
+				allNodes.attr('data-node-id', function (d) { return d.data.identifier; });
 				allNodes.selectAll('title').remove();
 				allNodes.append('title').text(function (d) {
 					var own = analysis.nodeIssues.get(d.data) || [];
@@ -748,6 +843,7 @@
 				self.svg.selectAll('text.branch-rejection').data(links.filter(function (d) { return marks.get(d.target.data) === 'dominated'; })).join('text')
 					.attr('class', 'branch-rejection').attr('x', function (d) { return (d.source.y + d.target.y) / 2; }).attr('y', function (d) { return d.target.x + 20; })
 					.style('fill', '#b00020').style('font-size', '24px').style('font-weight', 'bold').text('×');
+				if (self.onRendered) self.onRendered();
 			}
 		}
 		rtn.SetupD3();

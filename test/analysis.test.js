@@ -16,13 +16,13 @@ test('browser scripts parse and the controller blocks invalid risk profiles', ()
     assert.match(html, /src="analysis.js"/);
     assert.match(html, /ng-repeat="issue in vm.issues\(\)/);
     const source = scripts[0][2];
-    const context = { DecisionAnalysis: { analyze, leaves, strategies }, treeData: [decision(end(null))], main: { RenderTree() {} } };
+    const context = { DecisionAnalysis: { analyze, leaves, strategies }, JobDemo: require('../DecisionTree/job-demo.js'), demoStorage: null, treeData: [decision(end(null))], main: { RenderTree() {} } };
     vm.createContext(context);
     vm.runInContext(source.slice(source.indexOf('var ctrl ='), source.indexOf('var ModalInstanceCtrl =')), context);
     let opened = 0;
     let watch, listener;
     const controller = new context.ctrl({ $watch: (fn, cb) => { watch = fn; listener = cb; } }, {
-        open: () => { opened++; return { rendered: { then() {} } }; }
+        open: () => { opened++; return { rendered: { then() {} }, result: { then() {} } }; }
     });
     listener(watch());
     assert.equal(controller.validationIssues.length, 1);

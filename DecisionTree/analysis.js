@@ -35,7 +35,7 @@
                         if (!probability(child.Probability)) issue('Outcome ' + (index + 1) + ' needs a probability between 0 and 1.', child);
                     });
                     var sum = children.reduce(function (total, child) { return total + (number(child.Probability) ? child.Probability : 0); }, 0);
-                    if (valid && Math.abs(sum - 1) > tolerance) issue('Outcome probabilities must total 1 (currently ' + sum + ').');
+                    if (valid && Math.abs(sum - 1) > tolerance) issue('Outcome probabilities must total 1 (currently ' + Number(sum.toPrecision(12)) + ').');
                 }
                 node.ExpVal = issues.length !== start ? null : node.Type === 'd'
                     ? Math.max.apply(null, values)
