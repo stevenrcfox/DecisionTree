@@ -1,20 +1,32 @@
 # DecisionTree
-HTML5 D3 SVG based decision tree 
 
-## Hosting
+A browser-based tool for exploring decisions under uncertainty. Build a tree of choices, uncertain outcomes, probabilities, and payoffs to compare options using expected values and risk profiles.
 
-The site in `DecisionTree/` is deployed to Azure Static Web Apps (Free tier) by
-`.github/workflows/azure-static-web-apps.yml` on every push to `master`; pull
-requests get a temporary staging URL.
+## What you can do
 
-One-time setup:
+- Create and edit decision, chance, and end nodes in an interactive diagram.
+- Enter outcome probabilities and payoff values.
+- Inspect expected values and view cumulative risk profiles for alternative choices.
+- Save and load trees as `.tree` files containing JSON.
+- Export the tree as an SVG image.
+- Adjust the tree layout and connecting lines.
 
-1. In the Azure portal create a **Static Web App**, plan **Free**, deployment
-   source **Other** (the workflow in this repo does the deploying).
-2. Copy its **deployment token** (Overview → Manage deployment token) into a
-   GitHub repository secret named `AZURE_STATIC_WEB_APPS_API_TOKEN`.
-3. Under **Custom domains** add `decision.infiniteresolution.biz` and create the
-   CNAME it asks for, pointing at the app's `*.azurestaticapps.net` host. SSL is
-   issued automatically.
-4. Once the new host serves correctly, remove the Front Door / CDN profile and
-   disable static website hosting on the storage account.
+## Getting started
+
+Clone or download this repository, then serve the `DecisionTree/` directory with a local static web server and open `index.html` in your browser. There is no build step or application backend. An internet connection is needed to load the JavaScript and CSS dependencies from their CDNs.
+
+1. Choose **New** to start a tree.
+2. Click a node to edit its name, add child nodes, and configure the available node fields.
+3. Use decision nodes for choices, chance nodes for uncertain outcomes, and end nodes for payoffs. Enter probabilities as fractions between 0 and 1; outcomes under each chance node should total 1.
+4. Open **Risk Profile** to explore the distribution of outcomes across choices.
+5. Choose **Save** to download your tree, **Load** to reopen one, or **Export Image** to download an SVG.
+
+## Saving your work
+
+**Save** downloads a `.tree` file and also stores the tree in the browser's local storage. The app attempts to restore that saved tree when reopened in the same browser and site. Keep downloaded copies of work you want to retain: browser storage can be cleared and does not sync across devices.
+
+## Development
+
+The application lives in [`DecisionTree/index.html`](DecisionTree/index.html) and uses D3, AngularJS, jQuery, and Bootstrap. It can be hosted by a static web server; the repository also contains Azure Static Web Apps deployment workflows in [`.github/workflows/`](.github/workflows/).
+
+To report an issue, include the steps to reproduce it and, where possible, a small example tree with any sensitive information removed.
