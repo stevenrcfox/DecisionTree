@@ -1,17 +1,17 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 	<head>
 		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
 		<meta charset="utf-8">
 		<title>Decision Tree</title>
-		<script src="//ajax.aspnetcdn.com/ajax/jQuery/jquery-1.11.3.min.js"></script>
-		<script src="//d3js.org/d3.v5.min.js"></script>
-		<script src="//ajax.googleapis.com/ajax/libs/angularjs/1.4.6/angular.min.js"></script>
-		<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
-		<script src="//cdnjs.cloudflare.com/ajax/libs/angular-ui-bootstrap/0.13.4/ui-bootstrap-tpls.js"></script>
-		<script src="//cdnjs.cloudflare.com/ajax/libs/babel-polyfill/7.7.0/polyfill.js"></script>
-		<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" />
-		<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap-theme.min.css" />
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.4.6/angular.min.js"></script>
+		<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/angular-ui-bootstrap/0.13.4/ui-bootstrap-tpls.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-polyfill/7.7.0/polyfill.js"></script>
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" />
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap-theme.min.css" />
 	</head>
 	<body ng-app="app" ng-controller="Ctrl as vm">
 	<nav class="navbar navbar-default">
@@ -34,7 +34,7 @@
 	                <li><a href="#" ng-click="vm.SaveFile($event)"><span class="glyphicon glyphicon-floppy-save" aria-hidden="true"></span> Save</a></li>
 	                <li><a href="#" ng-click="vm.ExportImage($event)"><span class="glyphicon glyphicon-picture" aria-hidden="true"></span> Export Image</a></li>
 	                <li><a href="#" ng-click="vm.DisplaySettings()"><span class="glyphicon glyphicon-cog" aria-hidden="true"></span> Display Settings</a></li>
-					<li><a href="#" ng-click="vm.FindLeaf()"><span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Display Settings</a></li>
+					<li><a href="#" ng-click="vm.RiskProfile()"><span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Risk Profile</a></li>
 	            </ul>
 	        </div><!-- /.navbar-collapse -->
 	    </div><!-- /.container-fluid -->
@@ -125,6 +125,18 @@
             <button class="btn btn-primary" type="button" ng-click="vm.SaveFile()">OK</button>
         </div>
     </script>
+	
+	<script type="text/ng-template" id="riskProfile.html">
+        <div class="modal-header">
+            <h3 class="modal-title">Risk Profile</h3>
+        </div>
+        <div id="riskcontainer" class="modal-body">
+
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" type="button" ng-click="vm.cancel()">OK</button>
+        </div>
+    </script>
 
 
 	<script>
@@ -147,6 +159,7 @@
 			"ExpVal":0,
 			"parent": "null",
 			"Type":"d",
+			"identifier":"1",
 			"children": []
 		  }
 		];
@@ -178,29 +191,80 @@
 	{
 		switch(node.Type) {
 			case("c"):
+				node.children&&node.children.forEach(function(x){x.parent = node});
 				node.children&&node.children.forEach(function(x){GetLeafNodes(x,leaves)});
 			break;
 			case("d"):
+				node.children&&node.children.forEach(function(x){x.parent = node});
 				node.children&&node.children.forEach(function(x){GetLeafNodes(x,leaves)});
 			break;
 			case("e"):
 				leaves.push(node);
-				var probability=node.Probability;
+				var probability=node.Probability||1;
 				var parent=node.parent;
+				var previousNode=node;
 				var choices="";
+				var choicelist = new Array();
 				while(parent)
 				{
 					probability=(parent.Probability?probability*parent.Probability:probability);
-					if(parent.parent&&parent.parent.Type=="d"){
-						choices=choices.concat(parent.name);
+					if(parent.Type=="d"){
+						choices = choices!==""?" & ".concat(choices): choices;
+						choices=previousNode.name.concat(choices);
+						choicelist.splice(0, 0, previousNode.name);
 					}
+					previousNode = parent;
 					parent=parent.parent;
 				}
 				node.finalProbability=probability;
-				node.choices=choices;
+				node.choices=choices||node.name;
+				node.choicelist=choicelist;
 			break;
 		}
 	}	
+	
+	function GetLeafNodeByIdentifier(node,identifier)
+	{
+		if(node.identifier===identifier)
+			return node;
+			
+		return node.children&&node.children.reduce((acc, current)=>{
+			if (acc) return acc;
+			return GetLeafNodeByIdentifier(current,identifier)
+		}, null);
+	}	
+	
+	function RecursiveReduce(pointlist){
+		var unreferencedpoints = pointlist.filter(y=>y[2].length==0);
+		var aggregatelist = pointlist.reduce((agg,item)=>{
+			if(item[2].length>0){
+				var index = agg.map(x=>x[0]).indexOf(item[2][0]);
+				if(index>=0){
+					agg[index][1].push(item);
+				}
+				else{
+					agg.push([item[2][0], [item]]);
+				}
+				item[2].splice(0,1);
+			}
+			return agg;
+		}, new Array())
+		
+		aggregatelist.forEach(x=>{
+			unreferencedpoints.forEach(y=>x[1].push(y));
+			x[1].sort(function(a,b){return a[0]-b[0];});
+		});
+		
+		var aggregatesNeedMoreReducing = aggregatelist.filter(x=>x[1].filter(y=>y[2].length>0).length>0);
+		aggregatesNeedMoreReducing.forEach(z=>{
+			var newEntries = RecursiveReduce(z[1]);
+			var spliceindex = aggregatelist.indexOf(z);
+			aggregatelist.splice(spliceindex,1);
+			newEntries.forEach(x=>aggregatelist.push(x));
+		})
+
+		return aggregatelist;
+	}
 	
 	//function 
 	
@@ -209,16 +273,10 @@
 		self.title = 'Some title';
 		
 		self.FindLeaf = function(){
-			var leafslist=[]
+			var leafslist=new Array();
 			GetLeafNodes(treeData[0],leafslist);
 			leafslist.sort(function(a,b){return a.ExpVal-b.ExpVal;});
-			var splitlist= leafslist.reduce(function (r,a){
-				r[a.choices]=r[a.choices]||[];
-				r[a.choices].push(a);
-				return r;
-			},Object.create(null));
-			profileBuilder=splitlist;
-			main.RenderProfile();
+			return leafslist;
 		};
 		
 		self.Open = function (item, size) {
@@ -232,11 +290,99 @@
 			});
 
 			modalInstance.result.then(function (selectedItem) {
+			    main.SetupTree();
 				main.RenderTree(self.currNode);
 			}, function () {
 			  
 			});
 		  };
+		  
+		  self.RiskProfile = function () {
+			var leafnodes = self.FindLeaf();
+			var modalInstance = $modal.open({
+			  animation: true,
+			  templateUrl: 'riskProfile.html',
+			  controller: 'ModalInstanceCtrl as vm',
+			  size:'lg',
+			  resolve:{currNode:function(){return self.currNode}},
+			});
+			
+			modalInstance.rendered.then(function(){
+				self.RenderRiskProfile(leafnodes);
+			});
+		  };
+		  
+		  self.RenderRiskProfile = function(leafnodes){
+			const width = 1024;
+			const height = 800;
+			const marginTop = 20;
+			const marginRight = 30;
+			const marginBottom = 30;
+			const marginLeft = 40;
+			
+			const x = d3.scaleLinear().domain(d3.extent(leafnodes, d => d.ExpVal)).range([marginLeft, width - marginRight]);
+			const y = d3.scaleLinear().domain([0, 1]).range([height - marginBottom, marginTop]);
+			
+			const svg = d3.select("#riskcontainer").append("svg")
+					.attr("width", width)
+					.attr("height", height)
+					.attr("viewBox", [0, 0, width, height])
+					.attr("style", "max-width: 100%; height: auto; height: intrinsic;");
+						
+			svg.append("g")
+				.attr("transform", `translate(0,${height - marginBottom})`)
+				.call(d3.axisBottom(x).ticks(width / 80).tickSizeOuter(0));
+				
+			svg.append("g")
+			  .attr("transform", `translate(${marginLeft},0)`)
+			  .call(d3.axisLeft(y).ticks(height / 40))
+			  .call(g => g.select(".domain").remove())
+			  .call(g => g.selectAll(".tick line").clone()
+				  .attr("x2", width - marginLeft - marginRight)
+				  .attr("stroke-opacity", 0.1))
+			  .call(g => g.append("text")
+				  .attr("x", -marginLeft)
+				  .attr("y", 10)
+				  .attr("fill", "currentColor")
+				  .attr("text-anchor", "start")
+				  .text("↑ Daily close ($)"));
+				  
+			const points = leafnodes.map((d) => [d.ExpVal, d.finalProbability, d.choicelist, d.choices]);
+			const groups = RecursiveReduce(points);
+			
+			var choicelist =  new Map(
+				// for each year
+				groups.map(([choice, values]) => {
+				  // summed is an array of numbers
+				  const summed = d3.cumsum(values, d => d[1]);
+				  // dates is an array of dates
+				  const val = values.map(d => d[0]);
+				  // zip them together
+				  const combined = ([[0,0]]).concat(d3.zip(val, summed));
+				  return [choice, combined.map(([Value,CumProb])=>({Value, CumProb}))]
+				}));
+			
+			var colour = d3.scaleOrdinal(d3.schemeCategory10);
+			
+			
+			const line = d3.line()
+				.x((d)=>x(d.Value))
+				.y((d)=>y(d.CumProb))
+				.curve(d3.curveStepAfter)
+				
+		    const path = svg.append("g")
+					  .attr("fill", "none")
+					  .attr("stroke-width", 1.5)
+					  .attr("stroke-linejoin", "round")
+					  .attr("stroke-linecap", "round")
+					.selectAll("path")
+					.data(choicelist.values())
+					.join("path")
+					  .style("mix-blend-mode", "multiply")
+					  .attr("stroke", d=>colour(d[0]))
+					  .attr("d", line);
+		  
+		  }
 		  
 		  self.DisplaySettings = function () {
 			var modalInstance = $modal.open({
@@ -283,7 +429,7 @@
 		  
 		self.SaveFile = function (event){
 		
-		    var json = JSON.stringify(treeData.data,function( key, value) {
+		    var json = JSON.stringify(treeData,function( key, value) {
 					if( key == 'parent') { return undefined;}
 					else if( key == 'depth') { return undefined;}
 					else if( key == 'x') { return undefined;}
@@ -312,6 +458,7 @@
 					"ExpVal":null,
 					"parent": "null",
 					"Type":"d",
+					"identifier":"1",
 					"children": []
 				}];
 			main.SetupTree();
@@ -523,77 +670,22 @@
 				}
 				
 				currnode.data.Type = currnode.data.Type == "e"?"c":currnode.data.Type;
-				
-				treeData[0].children.push({
+
+				var newNode = {
 						"name": "NewNode",
-						"parent": currnode.name,
 						"Probability":null,
 						"ExpVal":null,
-						"Type":"e"
-					});
-				
-				var child =Object.assign(new d3.hierarchy.prototype.constructor, 
-				{
-					"data":{
-						"name": "NewNode",
-						"parent": currnode.name,
-						"Probability":null,
-						"ExpVal":null,
-						"Type":"e"
-						//"x":treeNode.x,
-						//"y":treeNode.y
-					},
-					"parent":currnode,
-					"depth":currnode.depth+1
-				});
-				
-				
-				
-				//currnode.children.push(child);
-				//self.tree.nodes.push(child);
-				//self.tree.links.push({source: currnode, target: child});
-				//self.RenderTree();
-				
-				
+						"Type":"e",
+					};
+					
+				var datanode = GetLeafNodeByIdentifier(treeData[0], currnode.data.identifier);
+				datanode.children=datanode.children||[];
+				datanode.children.push(newNode);
+				newNode.parent=datanode;
+				newNode.identifier = datanode.identifier + "." +  datanode.children.length
+	
 			},
-			
-			RenderProfile: function(parent) {
-				var self=this;
-				
-				var x = d3.scaleLinear()
-						.domain([0, 26000000]).nice()
-					.range([height - margin.bottom, margin.top])
-						
-				var y = d3.scaleLinear()
-					.domain([0, 1]).nice()
-					.range([height - margin.bottom, margin.top])
-				
-				self.svg.append("g").attr("transform", 'translate(0,${height - margin.bottom})')
-				.call(d3.axisBottom(x).ticks(width / 80).tickSizeOuter(0))
-				
-				
-				self.svg.append("g").attr("transform", 'translate(${margin.left},0)')
-				.call(d3.axisLeft(y))
-				.call(function(g){ return g.select(".domain").remove();})
-				.call(function(g){ return g.select(".tick:last-of-type text").clone()
-					.attr("x", 3)
-					.attr("text-anchor", "start")
-					.attr("font-weight", "bold")
-				.text(data.y);})
-				
-				const path = self.svg.append("g")
-				  .attr("fill", "none")
-				  .attr("stroke", "steelblue")
-				  .attr("stroke-width", 1.5)
-				  .attr("stroke-linejoin", "round")
-				  .attr("stroke-linecap", "round")
-				.selectAll("path")
-				.data(data.series)
-				.join("path")
-				  .style("mix-blend-mode", "multiply")
-				  .attr("d", function(d){ return line(d.values);});
-			},
-			
+
 			RenderTree : function(parent) {
 				var self = this;
 				
@@ -683,7 +775,7 @@
 
 				   
 				nodeEnter.on("click",function(d){
-					angular.element(this).scope().vm.Open(d);
+					angular.element(this).scope().vm.Open(this.__data__);
 				});
 				
 				node.select("path")
@@ -758,3 +850,4 @@
 	</script>
 	</body>
 </html>
+
