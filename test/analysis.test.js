@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { analyze, leaves } = require('../DecisionTree/analysis.js');
+const { analyze, leaves, strategies, dominates, recommendations } = require('../DecisionTree/analysis.js');
 const end = (value, probability) => ({ Type: 'e', name: 'Payoff', ExpVal: value, Probability: probability });
 const chance = (...children) => ({ Type: 'c', name: 'Chance', children });
 const decision = (...children) => ({ Type: 'd', name: 'Decision', children });
@@ -14,9 +14,9 @@ test('browser scripts parse and the controller blocks invalid risk profiles', ()
     assert.equal(scripts.length, 1);
     new vm.Script(scripts[0][2]);
     assert.match(html, /src="analysis.js"/);
-    assert.match(html, /ng-repeat="issue in vm.validationIssues/);
+    assert.match(html, /ng-repeat="issue in vm.issues\(\)/);
     const source = scripts[0][2];
-    const context = { DecisionAnalysis: { analyze, leaves }, treeData: [decision(end(null))] };
+    const context = { DecisionAnalysis: { analyze, leaves, strategies }, treeData: [decision(end(null))], main: { RenderTree() {} } };
     vm.createContext(context);
     vm.runInContext(source.slice(source.indexOf('var ctrl ='), source.indexOf('var ModalInstanceCtrl =')), context);
     let opened = 0;
@@ -89,4 +89,91 @@ test('validation identifies the branch and recovers after correction', () => {
     root.children[0].children[0].ExpVal = -5;
     assert.equal(analyze(root).value, -5);
     assert.equal(analyze(root).valid, true);
+});
+
+test('duplicate names keep strategies separate and renaming does not change their distributions', () => {
+    const root = decision(chance(end(100, .5), end(500, .5)), end(250));
+    analyze(root);
+    const before = strategies(root);
+    assert.equal(before.length, 2);
+    assert.notEqual(before[0].id, before[1].id);
+    root.children.forEach(child => { child.name = 'NewNode'; });
+    assert.deepEqual(strategies(root).map(s => s.points), before.map(s => s.points));
+});
+test('screenshot tree has three strategies with normalized CDFs and only the nested dominant choice marked', () => {
+    const better = chance(end(500, .5), end(100, .5));
+    const worse = chance(end(500, .5), end(100, .3), end(-200, .2));
+    const nested = decision(better, worse);
+    nested.Probability = .5;
+    const root = decision(chance(end(200, .5), nested), end(250));
+    const analysis = analyze(root);
+    const curves = strategies(root);
+    assert.equal(curves.length, 3);
+    assert.deepEqual(curves.map(s => s.ev), [250, 220, 250]);
+    for (const curve of curves) {
+        assert.equal(curve.points.at(-1).probability, 1);
+        assert.ok(curve.points.every(p => p.probability >= 0 && p.probability <= 1));
+    }
+    const marks = recommendations(root, analysis);
+    assert.equal(marks.get(better), 'chosen');
+    assert.equal(marks.get(worse), 'dominated');
+    assert.equal(marks.has(root.children[0]), false);
+    assert.equal(marks.has(root.children[1]), false);
+});
+test('chance branches combine contingent choices into complete strategies', () => {
+    const a = decision(end(0), end(10)); a.Probability = .5;
+    const b = decision(end(20), end(30)); b.Probability = .5;
+    const root = chance(a, b);
+    analyze(root);
+    assert.deepEqual(strategies(root).map(s => s.ev), [10, 15, 15, 20]);
+});
+test('crossing profiles and equal EVs do not produce branch recommendations', () => {
+    const risky = chance(end(-100, .5), end(400, .5));
+    const safe = end(100);
+    const root = decision(risky, safe);
+    const analysis = analyze(root);
+    const profiles = strategies(root);
+    assert.equal(dominates(profiles[0], profiles[1]), false);
+    assert.equal(dominates(profiles[1], profiles[0]), false);
+    assert.equal(recommendations(root, analysis).size, 0);
+    const tied = decision(end(100), end(100));
+    assert.equal(recommendations(tied, analyze(tied)).size, 0);
+});
+test('invalid models have no recommendations; issues remain attached to exact node objects', () => {
+    const bad = end(1, -1);
+    const root = decision(chance(bad), end(5));
+    const analysis = analyze(root);
+    assert.ok(analysis.nodeIssues.has(bad));
+    assert.ok(analysis.invalid.has(root));
+    assert.equal(recommendations(root, analysis).size, 0);
+});
+test('strategy enumeration limit reports overflow rather than silently omitting curves', () => {
+    assert.throws(() => strategies(decision(end(1), end(2), end(3)), 2), /Too many strategies/);
+});
+test('zero probability subtrees do not create spurious strategies', () => {
+    const impossible = decision(end(100), end(200)); impossible.Probability = 0;
+    const root = chance(impossible, end(20, 1));
+    analyze(root);
+    assert.equal(strategies(root).length, 1);
+    assert.equal(strategies(root)[0].ev, 20);
+});
+
+test('chance-only trees aggregate repeated payoffs into one normalized profile', () => {
+    const root = chance(end(-5, .2), end(-5, .3), end(20, .5));
+    analyze(root);
+    assert.deepEqual(strategies(root)[0].points, [{ value: -5, probability: .5 }, { value: 20, probability: 1 }]);
+});
+test('later decision trade-offs prevent a premature recommendation', () => {
+    const flexible = decision(end(-100), end(300));
+    const root = decision(flexible, end(200));
+    const marks = recommendations(root, analyze(root));
+    assert.equal(marks.has(flexible), false);
+    assert.equal(marks.has(root.children[1]), false);
+    assert.equal(marks.get(flexible.children[1]), 'chosen');
+});
+test('the supplied example fixture yields the expected strategy distributions', () => {
+    const fs = require('node:fs');
+    const root = JSON.parse(fs.readFileSync(require('node:path').join(__dirname, 'fixtures/nested-decisions.tree'), 'utf8'))[0];
+    assert.equal(analyze(root).valid, true);
+    assert.deepEqual(strategies(root).map(s => s.ev), [250, 220, 250]);
 });

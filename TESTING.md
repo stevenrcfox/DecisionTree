@@ -8,7 +8,8 @@ and pushes to `master`, without deployment secrets.
 
 For a browser smoke check, serve `DecisionTree/` with a static web server:
 
-1. Start a new tree. The incomplete-model warning should identify the empty root.
+1. Start a new tree. The empty root should have a red outline, bold label and a
+   warning marker. Hover for its error or click to see details in the editor.
 2. Add two end nodes with payoffs -100 and -20. The decision value should be -20.
 3. Change a child with two outcomes to Chance. Give its outcomes probabilities
    0.25 and 0.75 and payoffs 100 and -20. Its expected value should be 10.
@@ -17,9 +18,34 @@ For a browser smoke check, serve `DecisionTree/` with a static web server:
 5. Change the probabilities to 0 and 1. Risk Profile should retain the impossible
    outcome at zero probability rather than adding probability mass.
 6. Clear a payoff, enter a probability outside 0–1, or make the probabilities sum
-   to 0.9. Check that the warning identifies the problem, affected ancestor values
+   to 0.9. Check that red styling identifies the problem, affected ancestor values
    read Incomplete, and Risk Profile stays closed until the model is corrected.
 
 Probabilities are validated only on edges out of chance nodes. Values on decision
 edges do not affect path probabilities. Probability totals allow a 1e-9 rounding
 tolerance. Payoffs may be negative or zero but must be finite numbers.
+
+## Strategy profiles and dominance
+
+Load `test/fixtures/nested-decisions.tree` to reproduce the nested decision
+example. Risk Profile should show three labelled strategies with EVs 250, 220,
+and 250. Every curve ends at cumulative probability 1. The nested choice c2 is
+bold and c1 has a red ×; the root alternatives are unmarked. Rename choices to
+the same name and confirm the three curves remain separate.
+
+Strategies use structural branch paths as identities; names are display labels.
+At chance nodes, strategies combine the contingent choices in each reachable
+outcome. Zero-probability subtrees do not add strategies. Payoffs at the same
+value are combined, and each curve is normalized to absorb the probability-sum
+rounding tolerance accepted by validation.
+
+Recommendations require strictly higher EV and first-order stochastic dominance:
+the preferred CDF is never above the other CDF and is below it at some threshold
+(probability tolerance 1e-9). For branches containing later decisions, marking is
+conservative: every strategy in the preferred branch must dominate every strategy
+in every alternative. Crossing curves, EV ties, invalid models, or excessive
+strategy counts leave the decision unmarked. Markings do not delete or prune data.
+
+Enumeration is limited to 256 strategies per subtree to bound combinatorial
+growth. The chart reports the limit instead of silently dropping strategies;
+recommendations for an over-limit decision are omitted.

@@ -1,0 +1,88 @@
+[
+  {
+    "name": "d2",
+    "Type": "d",
+    "TreeStyle": "tree",
+    "LineStyle": "a",
+    "children": [
+      {
+        "name": "c3",
+        "Type": "c",
+        "children": [
+          {
+            "name": "path 1",
+            "Type": "e",
+            "ExpVal": 200,
+            "Probability": 0.5,
+            "identifier": "1.1.1"
+          },
+          {
+            "name": "d1",
+            "Type": "d",
+            "Probability": 0.5,
+            "children": [
+              {
+                "name": "c2",
+                "Type": "c",
+                "children": [
+                  {
+                    "name": "path 2",
+                    "Type": "e",
+                    "ExpVal": 500,
+                    "Probability": 0.5,
+                    "identifier": "1.1.2.1.1"
+                  },
+                  {
+                    "name": "path 3",
+                    "Type": "e",
+                    "ExpVal": 100,
+                    "Probability": 0.5,
+                    "identifier": "1.1.2.1.2"
+                  }
+                ],
+                "identifier": "1.1.2.1"
+              },
+              {
+                "name": "c1",
+                "Type": "c",
+                "children": [
+                  {
+                    "name": "path 4",
+                    "Type": "e",
+                    "ExpVal": 500,
+                    "Probability": 0.5,
+                    "identifier": "1.1.2.2.1"
+                  },
+                  {
+                    "name": "path 5",
+                    "Type": "e",
+                    "ExpVal": 100,
+                    "Probability": 0.3,
+                    "identifier": "1.1.2.2.2"
+                  },
+                  {
+                    "name": "path 6",
+                    "Type": "e",
+                    "ExpVal": -200,
+                    "Probability": 0.2,
+                    "identifier": "1.1.2.2.3"
+                  }
+                ],
+                "identifier": "1.1.2.2"
+              }
+            ],
+            "identifier": "1.1.2"
+          }
+        ],
+        "identifier": "1.1"
+      },
+      {
+        "name": "path 7",
+        "Type": "e",
+        "ExpVal": 250,
+        "identifier": "1.2"
+      }
+    ],
+    "identifier": "1"
+  }
+]

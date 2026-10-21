@@ -40,11 +40,8 @@
 	        </div><!-- /.navbar-collapse -->
 	    </div><!-- /.container-fluid -->
 	</nav>
-    <div class="alert alert-warning" role="alert" ng-if="vm.validationIssues.length">
-        <strong>Model incomplete — correct these issues before using the results:</strong>
-        <ul><li ng-repeat="issue in vm.validationIssues track by $index">{{issue}}</li></ul>
-        <span>Calculated values for affected branches are shown as incomplete.</span>
-    </div>
+    <p class="text-muted" style="margin: 0 15px">⚠ Red outlines indicate invalid or incomplete branches; hover or click a node for details.
+        Bold branches have higher EV and a dominant risk profile; × marks dominated alternatives.</p>
     <div id="container"></div>
 	
 	<script type="text/ng-template" id="myModalContent.html">
@@ -52,6 +49,9 @@
             <h3 class="modal-title">Edit Node</h3>
         </div>
         <div class="modal-body">
+			<div class="alert alert-warning" ng-if="vm.issues().length" role="alert">
+				<ul><li ng-repeat="issue in vm.issues() track by $index">{{issue}}</li></ul>
+			</div>
 			<div class="form-group">
 				<label>Node Name</label>
 				<input type="text" class="form-control" placeholder="Name" ng-model="vm.currNode.data.name" />
@@ -138,7 +138,8 @@
             <h3 class="modal-title">Risk Profile</h3>
         </div>
         <div id="riskcontainer" class="modal-body">
-
+            <p>Each curve represents a complete strategy, including choices at later decisions. Lower cumulative probability at a payoff threshold means less probability of an outcome at or below that value.</p>
+            <div id="risklegend"></div>
         </div>
         <div class="modal-footer">
             <button class="btn btn-primary" type="button" ng-click="vm.cancel()">OK</button>
@@ -184,46 +185,16 @@
 		}, null);
 	}	
 	
-	function RecursiveReduce(pointlist){
-		var unreferencedpoints = pointlist.filter(y=>y[2].length==0);
-		var aggregatelist = pointlist.reduce((agg,item)=>{
-			if(item[2].length>0){
-				var index = agg.map(x=>x[0]).indexOf(item[2][0]);
-				if(index>=0){
-					agg[index][1].push(item);
-				}
-				else{
-					agg.push([item[2][0], [item]]);
-				}
-				item[2].splice(0,1);
-			}
-			return agg;
-		}, new Array())
-		
-		aggregatelist.forEach(x=>{
-			unreferencedpoints.forEach(y=>x[1].push(y));
-			x[1].sort(function(a,b){return a[0]-b[0];});
-		});
-		
-		var aggregatesNeedMoreReducing = aggregatelist.filter(x=>x[1].filter(y=>y[2].length>0).length>0);
-		aggregatesNeedMoreReducing.forEach(z=>{
-			var newEntries = RecursiveReduce(z[1]);
-			var spliceindex = aggregatelist.indexOf(z);
-			aggregatelist.splice(spliceindex,1);
-			newEntries.forEach(x=>aggregatelist.push(x));
-		})
-
-		return aggregatelist;
-	}
-	
-	//function 
 	
 	var ctrl = function ($scope,$modal) {
 		var self = this;
 		self.title = 'Some title';
 		$scope.$watch(function () {
 			return JSON.stringify(DecisionAnalysis.analyze(treeData[0]).issues);
-		}, function (issues) { self.validationIssues = JSON.parse(issues); });
+		}, function (issues) {
+			self.validationIssues = JSON.parse(issues);
+			main.RenderTree();
+		});
 		
 		self.FindLeaf = function(){
 			var leafslist=new Array();
@@ -252,8 +223,10 @@
 		  
 		  self.RiskProfile = function () {
 			self.validationIssues = DecisionAnalysis.analyze(treeData[0]).issues;
-			if (self.validationIssues.length) return;
-			var leafnodes = self.FindLeaf();
+			if (self.validationIssues.length) { main.RenderTree(); return; }
+			var profiles, profileError;
+			try { profiles = DecisionAnalysis.strategies(treeData[0]); }
+			catch (error) { profileError = error.message; }
 			var modalInstance = $modal.open({
 			  animation: true,
 			  templateUrl: 'riskProfile.html',
@@ -263,81 +236,42 @@
 			});
 			
 			modalInstance.rendered.then(function(){
-				self.RenderRiskProfile(leafnodes);
+				if (profileError) d3.select('#risklegend').append('p').attr('role', 'alert').text(profileError);
+				else self.RenderRiskProfile(profiles);
 			});
 		  };
 		  
-		  self.RenderRiskProfile = function(leafnodes){
-			const width = 1024;
-			const height = 800;
-			const marginTop = 20;
-			const marginRight = 30;
-			const marginBottom = 30;
-			const marginLeft = 40;
-			
-			const x = d3.scaleLinear().domain(d3.extent(leafnodes, d => d.ExpVal)).range([marginLeft, width - marginRight]);
-			const y = d3.scaleLinear().domain([0, 1]).range([height - marginBottom, marginTop]);
-			
-			const svg = d3.select("#riskcontainer").append("svg")
-					.attr("width", width)
-					.attr("height", height)
-					.attr("viewBox", [0, 0, width, height])
-					.attr("style", "max-width: 100%; height: auto; height: intrinsic;");
-						
-			svg.append("g")
-				.attr("transform", `translate(0,${height - marginBottom})`)
-				.call(d3.axisBottom(x).ticks(width / 80).tickSizeOuter(0));
-				
-			svg.append("g")
-			  .attr("transform", `translate(${marginLeft},0)`)
-			  .call(d3.axisLeft(y).ticks(height / 40))
-			  .call(g => g.select(".domain").remove())
-			  .call(g => g.selectAll(".tick line").clone()
-				  .attr("x2", width - marginLeft - marginRight)
-				  .attr("stroke-opacity", 0.1))
-			  .call(g => g.append("text")
-				  .attr("x", -marginLeft)
-				  .attr("y", 10)
-				  .attr("fill", "currentColor")
-				  .attr("text-anchor", "start")
-				  .text("Cumulative probability"));
-				  
-			const points = leafnodes.map((d) => [d.ExpVal, d.finalProbability, d.choicelist, d.choices]);
-			const groups = RecursiveReduce(points);
-			
-			var choicelist =  new Map(
-				// for each year
-				groups.map(([choice, values]) => {
-				  // summed is an array of numbers
-				  const summed = d3.cumsum(values, d => d[1]);
-				  // dates is an array of dates
-				  const val = values.map(d => d[0]);
-				  // zip them together
-				  const combined = ([[x.domain()[0],0]]).concat(d3.zip(val, summed));
-				  return [choice, combined.map(([Value,CumProb])=>({Value, CumProb}))]
-				}));
-			
-			var colour = d3.scaleOrdinal(d3.schemeCategory10);
-			
-			
-			const line = d3.line()
-				.x((d)=>x(d.Value))
-				.y((d)=>y(d.CumProb))
-				.curve(d3.curveStepAfter)
-				
-		    const path = svg.append("g")
-					  .attr("fill", "none")
-					  .attr("stroke-width", 1.5)
-					  .attr("stroke-linejoin", "round")
-					  .attr("stroke-linecap", "round")
-					.selectAll("path")
-					.data(choicelist.values())
-					.join("path")
-					  .style("mix-blend-mode", "multiply")
-					  .attr("stroke", d=>colour(d[0]))
-					  .attr("d", line);
-		  
-		  }
+		  self.RenderRiskProfile = function(profiles) {
+            const width = 1024, height = 550;
+            const margin = { top: 40, right: 30, bottom: 55, left: 65 };
+            const extent = d3.extent(profiles.flatMap(s => s.points.map(p => p.value)));
+            const padding = (extent[1] - extent[0]) * .05 || Math.max(1, Math.abs(extent[0]) * .05);
+            const domain = [extent[0] - padding, extent[1] + padding];
+            const x = d3.scaleLinear().domain(domain).range([margin.left, width - margin.right]);
+            const y = d3.scaleLinear().domain([0, 1]).range([height - margin.bottom, margin.top]);
+            const colour = d3.scaleOrdinal(d3.schemeTableau10).domain(profiles.map(s => s.id));
+            const svg = d3.select('#riskcontainer').append('svg')
+                .attr('viewBox', [0, 0, width, height]).attr('width', width)
+                .attr('style', 'max-width:100%;height:auto').attr('role', 'img')
+                .attr('aria-label', 'Cumulative payoff distributions by strategy');
+            svg.append('g').attr('transform', 'translate(0,' + (height - margin.bottom) + ')').call(d3.axisBottom(x));
+            svg.append('g').attr('transform', 'translate(' + margin.left + ',0)').call(d3.axisLeft(y).ticks(10));
+            svg.append('text').attr('x', margin.left).attr('y', 20).text('Cumulative probability');
+            svg.append('text').attr('x', width / 2).attr('y', height - 10).text('Payoff');
+            const line = d3.line().x(p => x(p.value)).y(p => y(p.probability)).curve(d3.curveStepAfter);
+            profiles.forEach(function (strategy, index) {
+                const points = [{ value: domain[0], probability: 0 }].concat(strategy.points, [{ value: domain[1], probability: 1 }]);
+                const dash = index < 10 ? null : (2 + Math.floor(index / 10)) + ',3';
+                svg.append('path').attr('class', 'strategy-curve').attr('fill', 'none')
+                    .attr('stroke', colour(strategy.id)).attr('stroke-width', 2).attr('stroke-dasharray', dash)
+                    .attr('d', line(points)).append('title').text(strategy.label + ' — EV ' + strategy.ev);
+                const row = d3.select('#risklegend').append('div');
+                row.append('svg').attr('width', 35).attr('height', 16).append('line')
+                    .attr('x1', 0).attr('x2', 30).attr('y1', 8).attr('y2', 8)
+                    .attr('stroke', colour(strategy.id)).attr('stroke-width', 2).attr('stroke-dasharray', dash);
+                row.append('span').text(strategy.label + ' — EV ' + strategy.ev.toFixed(2));
+            });
+          };
 		  
 		  self.DisplaySettings = function () {
 			var modalInstance = $modal.open({
@@ -452,6 +386,10 @@
 	
 	var ModalInstanceCtrl = function ($modalInstance, currNode) {
 		this.currNode=currNode;
+		this.issues = function () {
+			var result = DecisionAnalysis.analyze(treeData[0]);
+			return result.nodeIssues.get(currNode && currNode.data) || (result.invalid.has(currNode && currNode.data) ? ['Contains an invalid or incomplete descendant. Follow the red branches to find it.'] : []);
+		};
 
 		this.ok = function () {
 			$modalInstance.close('ok');
@@ -643,7 +581,8 @@
 
 			RenderTree : function(parent) {
 				var self = this;
-				DecisionAnalysis.analyze(treeData[0]);
+				var analysis = DecisionAnalysis.analyze(treeData[0]);
+				var marks = DecisionAnalysis.recommendations(treeData[0], analysis);
 				
 				
 				// Compute the new tree layout.
@@ -791,6 +730,24 @@
 				.attr("d", self.LineStyle(self.root.LineStyle));
 				
 				link.exit().remove();
+				// Style the merged selections so new and edited nodes behave alike.
+				var allNodes = self.svg.selectAll('g.node');
+				allNodes.selectAll('title').remove();
+				allNodes.append('title').text(function (d) {
+					var own = analysis.nodeIssues.get(d.data) || [];
+					return own.join('\n') || (analysis.invalid.has(d.data) ? 'Contains an invalid or incomplete descendant.' : (marks.get(d.data) === 'dominated' ? 'Dominated alternative: another choice has higher EV and a dominant risk profile.' : marks.get(d.data) === 'chosen' ? 'Higher EV and a dominant risk profile.' : 'Click to edit node.'));
+				});
+				allNodes.select('path').style('stroke', function (d) { return analysis.invalid.has(d.data) || analysis.nodeIssues.has(d.data) ? '#b00020' : null; }).style('stroke-width', 3);
+				allNodes.selectAll('text').style('font-weight', function (d) { return analysis.invalid.has(d.data) || analysis.nodeIssues.has(d.data) || marks.get(d.data) === 'chosen' ? 'bold' : 'normal'; });
+				allNodes.select('.name').style('fill', function (d) { return analysis.invalid.has(d.data) || analysis.nodeIssues.has(d.data) ? '#b00020' : null; });
+				allNodes.selectAll('.analysis-marker').remove();
+				allNodes.append('text').attr('class', 'analysis-marker').attr('x', 18).attr('y', -20).style('fill', '#b00020').style('font-weight', 'bold').text(function (d) { return analysis.invalid.has(d.data) || analysis.nodeIssues.has(d.data) ? '⚠' : ''; });
+				var allLinks = self.svg.selectAll('path.link');
+				allLinks.style('stroke', function (d) { return analysis.invalid.has(d.target.data) || analysis.nodeIssues.has(d.target.data) || analysis.nodeIssues.has(d.source.data) ? '#b00020' : marks.get(d.target.data) === 'chosen' ? '#222' : '#ccc'; })
+					.style('stroke-width', function (d) { return analysis.invalid.has(d.target.data) || analysis.nodeIssues.has(d.target.data) || analysis.nodeIssues.has(d.source.data) || marks.get(d.target.data) === 'chosen' ? 4 : 2; });
+				self.svg.selectAll('text.branch-rejection').data(links.filter(function (d) { return marks.get(d.target.data) === 'dominated'; })).join('text')
+					.attr('class', 'branch-rejection').attr('x', function (d) { return (d.source.y + d.target.y) / 2; }).attr('y', function (d) { return d.target.x + 20; })
+					.style('fill', '#b00020').style('font-size', '24px').style('font-weight', 'bold').text('×');
 			}
 		}
 		rtn.SetupD3();
