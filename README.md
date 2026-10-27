@@ -45,3 +45,8 @@ you return. Restart resets only the example.
 The application lives in [`DecisionTree/index.html`](DecisionTree/index.html) and uses D3, AngularJS, jQuery, and Bootstrap. It can be hosted by a static web server; the repository also contains Azure Static Web Apps deployment workflows in [`.github/workflows/`](.github/workflows/).
 
 To report an issue, include the steps to reproduce it and, where possible, a small example tree with any sensitive information removed.
+
+## Roadmap
+
+See [ROADMAP.md](ROADMAP.md) for planned improvements, ideas under consideration,
+and the design questions around saving, undo/redo, and future collaboration.
