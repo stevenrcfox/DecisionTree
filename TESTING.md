@@ -1,9 +1,14 @@
-# Calculation and validation checks
+# Calculation, model and application checks
 
 Run `npm test` with Node.js 22 or newer. No packages need to be installed.
+
+The suite also checks the static entry's local assets and parses the committed
+browser modules, including React, without executing a build.
 The suite covers loss-only decisions, bottom-up recalculation, zero-probability
 paths, missing payoffs, invalid probabilities, probability totals, and the
-controller's risk-profile validation gate. GitHub Actions runs it on pull requests
+immutable editor drafts, deletion, file compatibility, and storage isolation.
+The browser smoke check below covers the UI's risk-profile validation gate.
+GitHub Actions runs it on pull requests
 and pushes to `master`, without deployment secrets.
 
 For a browser smoke check, serve `DecisionTree/` with a static web server:

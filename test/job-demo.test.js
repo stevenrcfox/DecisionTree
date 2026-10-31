@@ -92,18 +92,8 @@ test('Back restores the earlier example checkpoint rather than replaying instruc
 });
 
 test('download in demo mode never writes the normal local storage tree', () => {
-    const fs = require('node:fs');
-    const vm = require('node:vm');
-    const html = fs.readFileSync(require('node:path').join(__dirname, '../DecisionTree/index.html'), 'utf8');
-    const source = html.slice(html.indexOf('var ctrl ='), html.indexOf('var ModalInstanceCtrl ='));
+    const model = require('../DecisionTree/tree-model.js');
     const storage = memory(); storage.setItem('tree', 'original');
-    const context = { JobDemo: demo, demoStorage: memory(), localStorage: storage, treeData: demo.createTree() };
-    vm.createContext(context); vm.runInContext(source, context);
-    const ctrl = new context.ctrl({ $watch() {} }, {});
-    let filename;
-    ctrl.demoActive = true;
-    ctrl.FileDownloader = name => { filename = name; };
-    ctrl.SaveFile();
-    assert.equal(filename, 'job-and-commute-example.tree');
+    assert.deepEqual(JSON.parse(model.save(demo.createTree(), storage, true)), demo.createTree());
     assert.equal(storage.getItem('tree'), 'original');
 });

@@ -5,34 +5,12 @@ const end = (value, probability) => ({ Type: 'e', name: 'Payoff', ExpVal: value,
 const chance = (...children) => ({ Type: 'c', name: 'Chance', children });
 const decision = (...children) => ({ Type: 'd', name: 'Decision', children });
 
-test('browser scripts parse and the controller blocks invalid risk profiles', () => {
-    const fs = require('node:fs');
-    const vm = require('node:vm');
-    const html = fs.readFileSync(require('node:path').join(__dirname, '../DecisionTree/index.html'), 'utf8');
-    const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)]
-        .filter(match => !/text\/ng-template|\bsrc=/.test(match[1]));
-    assert.equal(scripts.length, 1);
-    new vm.Script(scripts[0][2]);
-    assert.match(html, /src="analysis.js"/);
-    assert.match(html, /ng-repeat="issue in vm.issues\(\)/);
-    const source = scripts[0][2];
-    const context = { DecisionAnalysis: { analyze, leaves, strategies }, JobDemo: require('../DecisionTree/job-demo.js'), demoStorage: null, treeData: [decision(end(null))], main: { RenderTree() {} } };
-    vm.createContext(context);
-    vm.runInContext(source.slice(source.indexOf('var ctrl ='), source.indexOf('var ModalInstanceCtrl =')), context);
-    let opened = 0;
-    let watch, listener;
-    const controller = new context.ctrl({ $watch: (fn, cb) => { watch = fn; listener = cb; } }, {
-        open: () => { opened++; return { rendered: { then() {} }, result: { then() {} } }; }
-    });
-    listener(watch());
-    assert.equal(controller.validationIssues.length, 1);
-    controller.RiskProfile();
-    assert.equal(opened, 0);
-    context.treeData[0].children[0].ExpVal = 0;
-    listener(watch());
-    assert.equal(controller.validationIssues.length, 0);
-    controller.RiskProfile();
-    assert.equal(opened, 1);
+test('validation distinguishes an incomplete model from a genuine zero payoff', () => {
+    const root = decision(end(null));
+    assert.equal(analyze(root).valid, false);
+    root.children[0].ExpVal = 0;
+    assert.equal(analyze(root).valid, true);
+    assert.equal(strategies(root)[0].ev, 0);
 });
 
 test('selects the least loss when all choices are negative', () => {
