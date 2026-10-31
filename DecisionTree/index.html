@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 	<head>
-		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta charset="utf-8">
 		<title>Decision Tree</title>
 		<script src="analysis.js"></script>
@@ -9,52 +9,40 @@
 		<script src="job-demo.js"></script>
 		<link rel="stylesheet" href="vendor/driver/dist/driver.css" />
 		<link rel="stylesheet" href="walkthrough.css" />
-		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.4.6/angular.min.js"></script>
-		<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
-		<script src="https://cdnjs.cloudflare.com/ajax/libs/angular-ui-bootstrap/0.13.4/ui-bootstrap-tpls.js"></script>
-		<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-polyfill/7.7.0/polyfill.js"></script>
-		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" />
-		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap-theme.min.css" />
+		<script src="vendor/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+		<script src="bootstrap-dialogs.js"></script>
+		<link rel="stylesheet" href="vendor/bootstrap/dist/css/bootstrap.min.css" />
 	</head>
 	<body ng-app="app" ng-controller="Ctrl as vm">
-	<nav class="navbar navbar-default">
-	    <div class="container-fluid">
-	        <!-- Brand and toggle get grouped for better mobile display -->
-	        <div class="navbar-header">
-	            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
-	                <span class="sr-only">Toggle navigation</span>
-	                <span class="icon-bar"></span>
-	                <span class="icon-bar"></span>
-	                <span class="icon-bar"></span>
-	            </button>
-	        </div>
-
-	        <!-- Collect the nav links, forms, and other content for toggling -->
-	        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
-	            <ul class="nav navbar-nav">
-	                <li ng-class="{disabled:vm.demoActive}"><a href="#" ng-click="!vm.demoActive && vm.NewTree()" ng-attr-aria-disabled="{{vm.demoActive}}"><span class="glyphicon glyphicon-file" aria-hidden="true"></span> New</a></li>
-	                <li ng-class="{disabled:vm.demoActive}"><a href="#" ng-click="!vm.demoActive && vm.LoadFile($event)" ng-attr-aria-disabled="{{vm.demoActive}}"><span class="glyphicon glyphicon-folder-open" aria-hidden="true"></span> Load</a></li>
-	                <li><a href="#" ng-click="vm.SaveFile($event)"><span class="glyphicon glyphicon-floppy-save" aria-hidden="true"></span> Save</a></li>
-	                <li><a href="#" ng-click="vm.ExportImage($event)"><span class="glyphicon glyphicon-picture" aria-hidden="true"></span> Export Image</a></li>
-	                <li><a href="#" ng-click="vm.DisplaySettings()"><span class="glyphicon glyphicon-cog" aria-hidden="true"></span> Display Settings</a></li>
-					<li><a id="risk-profile-menu" href="#" ng-click="vm.RiskProfile()"><span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Risk Profile</a></li>
-					<li><a href="#" ng-click="vm.StartDemo()"><span class="glyphicon glyphicon-education" aria-hidden="true"></span> Demo / walkthrough</a></li>
-	            </ul>
-	        </div><!-- /.navbar-collapse -->
-	    </div><!-- /.container-fluid -->
-	</nav>
+    <nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom mb-3" aria-label="Main navigation">
+        <div class="container-fluid">
+            <span class="navbar-brand">DecisionTree</span>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#main-menu" aria-controls="main-menu" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
+            <div class="collapse navbar-collapse" id="main-menu">
+                <ul class="navbar-nav flex-wrap">
+                    <li class="nav-item"><a class="nav-link" ng-class="{disabled:vm.demoActive}" href="#" ng-click="!vm.demoActive && vm.NewTree()" ng-attr-aria-disabled="{{vm.demoActive}}">New</a></li>
+                    <li class="nav-item"><a class="nav-link" ng-class="{disabled:vm.demoActive}" href="#" ng-click="!vm.demoActive && vm.LoadFile($event)" ng-attr-aria-disabled="{{vm.demoActive}}">Load</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#" ng-click="vm.SaveFile($event)">Save</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#" ng-click="vm.ExportImage($event)">Export Image</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#" ng-click="vm.DisplaySettings()">Display Settings</a></li>
+                    <li class="nav-item"><a class="nav-link" id="risk-profile-menu" href="#" ng-click="vm.RiskProfile()">Risk Profile</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#" ng-click="vm.StartDemo()">Demo / walkthrough</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
     <p class="alert alert-warning" role="alert" ng-if="vm.demoError">{{vm.demoError}}</p>
     <section id="demo-controls" ng-if="vm.demoActive" aria-label="Job example controls">
         <strong>Job and commute example · annual net income (£)</strong>
         <p>Illustrative figures: take-home income minus commuting costs. Travel time is not priced.
             Your previous tree is protected; returning or reloading restores it.</p>
         <button type="button" class="btn btn-primary btn-sm" ng-click="vm.EndDemo()">Return to my tree</button>
-        <button type="button" class="btn btn-default btn-sm" ng-click="vm.SaveFile()">Download example</button>
-        <button type="button" class="btn btn-default btn-sm" ng-click="vm.StartDemo()">Restart example and walkthrough</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" ng-click="vm.SaveFile()">Download example</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" ng-click="vm.StartDemo()">Restart example and walkthrough</button>
     </section>
-    <p class="text-muted" style="margin: 0 15px">⚠ Red outlines indicate invalid or incomplete branches; hover or click a node for details.
+    <p class="text-body-secondary" style="margin: 0 15px">⚠ Red outlines indicate invalid or incomplete branches; hover or click a node for details.
         Bold branches have higher EV and a dominant risk profile; × marks dominated alternatives.</p>
     <div id="container"></div>
 	
@@ -66,35 +54,35 @@
 			<div class="alert alert-warning" ng-if="vm.issues().length" role="alert">
 				<ul><li ng-repeat="issue in vm.issues() track by $index">{{issue}}</li></ul>
 			</div>
-			<div class="form-group">
-				<label for="node-name">Node Name</label>
+			<div class="mb-3">
+				<label class="form-label" for="node-name">Node Name</label>
 				<input id="node-name" type="text" class="form-control" placeholder="Name" ng-model="vm.currNode.data.name" />
 			</div>
 
-			<div class="form-group" ng-show="!vm.currNode.data.TreeStyle">
-				<label>Type</label>
-				<select ng-model="vm.currNode.data.Type" class="form-control">
+			<div class="mb-3" ng-show="!vm.currNode.data.TreeStyle">
+				<label class="form-label">Type</label>
+				<select ng-model="vm.currNode.data.Type" class="form-select">
 					<option value="d" ng-selected="vm.currNode.data.Type=='d'" ng-if="(vm.currNode.children&&(vm.currNode.children.length>0))">Decision</option>
 					<option value="c" ng-selected="vm.currNode.data.Type=='c'" ng-if="(vm.currNode.children&&(vm.currNode.children.length>0))">Chance</option>
 					<option value="e" ng-selected="vm.currNode.data.Type=='e'" ng-if="!(vm.currNode.children&&(vm.currNode.children.length>0))">End</option>
 				</select>
 			</div>
 
-			<div class="form-group" ng-show="vm.currNode.parent && vm.currNode.parent.data.Type=='c'">
-				<label for="node-probability">Probability</label>
+			<div class="mb-3" ng-show="vm.currNode.parent && vm.currNode.parent.data.Type=='c'">
+				<label class="form-label" for="node-probability">Probability</label>
 				<input id="node-probability" type="number" min="0" max="1" step="any" class="form-control" placeholder="Probability" ng-model="vm.currNode.data.Probability" />
-				<p class="help-block">Use 0 to 1. Probabilities under the same chance node must total 1.</p>
+				<p class="form-text">Use 0 to 1. Probabilities under the same chance node must total 1.</p>
 			</div>
 
-			<div class="form-group" ng-show="vm.currNode.data.Type=='e'">
-				<label for="node-value">Value</label>
+			<div class="mb-3" ng-show="vm.currNode.data.Type=='e'">
+				<label class="form-label" for="node-value">Value</label>
 				<input id="node-value" type="number" step="any" class="form-control" placeholder="Value" ng-model="vm.currNode.data.ExpVal" />
 			</div>
         </div>
         <div class="modal-footer">
-			<span class="pull-left">
+			<span class="me-auto">
 				<button class="btn btn-primary" ng-click="vm.AddChild()">Add Child Node</button>
-				<button class="btn btn-default" ng-click="vm.DeleteNode()">Delete Node</button>
+				<button class="btn btn-outline-secondary" ng-click="vm.DeleteNode()">Delete Node</button>
 			</span>
             <button class="btn btn-primary" type="button" ng-click="vm.ok()">OK</button>
             <button class="btn btn-warning" type="button" ng-click="vm.cancel()">Cancel</button>
@@ -107,18 +95,18 @@
         </div>
         <div class="modal-body">
 
-			<div class="form-group">
-				<label>Line Type</label>
-				<select ng-model="vm.currNode.LineStyle" class="form-control">
+			<div class="mb-3">
+				<label class="form-label">Line Type</label>
+				<select ng-model="vm.currNode.LineStyle" class="form-select">
 					<option value="a" ng-selected="vm.currNode.LineStyle=='a'">Angle</option>
 					<option value="s" ng-selected="vm.currNode.LineStyle=='s'">Square</option>
 					<option value="c" ng-selected="vm.currNode.LineStyle=='c'">Curve</option>
 				</select>
 			</div>
 			
-			<div class="form-group">
-				<label>Line Type</label>
-				<select ng-model="vm.currNode.TreeStyle" class="form-control">
+			<div class="mb-3">
+				<label class="form-label">Line Type</label>
+				<select ng-model="vm.currNode.TreeStyle" class="form-select">
 					<option value="tree" ng-selected="vm.currNode.TreeStyle=='tree'">Standard</option>
 					<option value="cluster" ng-selected="vm.currNode.TreeStyle=='cluster'">Cluster (End Nodes Always Aligned)</option>
 				</select>
@@ -136,8 +124,8 @@
         </div>
         <div class="modal-body">
 
-            <div class="form-group">
-                <label>Select File</label>
+            <div class="mb-3">
+                <label class="form-label">Select File</label>
                 <input type="file" fileread="vm.uploadme">
             </div>
 
@@ -510,7 +498,7 @@
 		};
 	};
 	
-	var app = angular.module("app",['ui.bootstrap'])
+	var app = angular.module("app",['bootstrapDialogs'])
 	.controller('Ctrl',ctrl)
 	.controller('ModalInstanceCtrl', ModalInstanceCtrl)
 	.directive("fileread", [function () {
@@ -651,10 +639,6 @@
 			AddChild: function (currnode) 
 			{
 				var self=this;
-				
-				if(!currnode.children){
-					currnode.children=[];
-				}
 				
 				currnode.data.Type = currnode.data.Type == "e"?"c":currnode.data.Type;
 
