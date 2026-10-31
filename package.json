@@ -1,5 +1,13 @@
 {
   "name": "decisiontree",
   "private": true,
-  "scripts": { "test": "node --test" }
+  "scripts": {
+    "test": "node --test",
+    "vendor:react": "node scripts/vendor-react.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  }
 }

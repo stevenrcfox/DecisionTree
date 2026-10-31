@@ -13,7 +13,7 @@ A browser-based tool for exploring decisions under uncertainty. Build a tree of 
 
 ## Getting started
 
-Clone or download this repository, then serve the `DecisionTree/` directory with a local static web server and open `index.html` in your browser. There is no build step or application backend. An internet connection is needed to load the JavaScript and CSS dependencies from their CDNs.
+Clone or download this repository, then serve the `DecisionTree/` directory with a local static web server and open `index.html` in your browser. There is no build step or application backend. React, Bootstrap and the walkthrough are bundled locally; an internet connection is needed for D3's pinned CDN script. Opening the HTML directly as a `file://` URL is not supported because the app uses JavaScript modules.
 
 1. Choose **New** to start a tree.
 2. Click a node to edit its name, add child nodes, and configure the available node fields.
@@ -42,7 +42,16 @@ you return. Restart resets only the example.
 
 ## Development
 
-The application lives in [`DecisionTree/index.html`](DecisionTree/index.html) and uses D3 7.9.0, AngularJS, and Bootstrap 5.3.8. Bootstrap is bundled locally; a small transitional adapter connects its dialogs to AngularJS. It can be hosted by a static web server; the repository also contains Azure Static Web Apps deployment workflows in [`.github/workflows/`](.github/workflows/).
+The application uses React/React DOM 19.3.1, Bootstrap 5.3.8 and D3 7.9.0. React owns application state, forms and dialogs; D3 owns only the SVG contents of its containers. AngularJS, jQuery and the transitional dialog adapter are no longer used.
+
+- [`app.js`](DecisionTree/app.js): React UI and walkthrough integration.
+- [`tree-model.js`](DecisionTree/tree-model.js): immutable editing, file loading and saving.
+- [`visuals.js`](DecisionTree/visuals.js): D3 tree and risk-profile rendering.
+- [`analysis.js`](DecisionTree/analysis.js): shared calculation and validation logic.
+
+Run `npm test` with Node.js 22 or newer; tests need no package installation. To refresh the committed React runtime only, run `npm ci` then `npm run vendor:react`. This optional maintainer task is not required to edit application code, serve the site, or deploy. No JSX compiler or framework CLI is used. Azure still deploys the static `DecisionTree/` directory without an application build.
+
+Node and settings dialogs use drafts: OK applies changes; Cancel, Escape and the close button discard them. Existing JSON `.tree` files and the browser's saved-tree key remain compatible.
 
 To report an issue, include the steps to reproduce it and, where possible, a small example tree with any sensitive information removed.
 

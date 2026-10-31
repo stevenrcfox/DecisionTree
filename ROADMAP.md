@@ -113,6 +113,6 @@ Add meaningful regression tests for numerical and workflow changes. Keep the
 public [README](README.md) focused on using the product and document verification
 in [TESTING.md](TESTING.md).
 
-An older standalone React/Bootstrap 5 prototype is a source of ideas, not the
-current implementation or an agreed framework migration. Prototype behaviours
-and reporting calculations need review before reuse.
+The staged Bootstrap 5 and React migration preserves the existing calculation
+engine, D3 rendering and static hosting. An older standalone prototype remains
+only a source of ideas; its reporting calculations need review before reuse.
