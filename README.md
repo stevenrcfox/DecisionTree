@@ -42,7 +42,7 @@ you return. Restart resets only the example.
 
 ## Development
 
-The application lives in [`DecisionTree/index.html`](DecisionTree/index.html) and uses D3, AngularJS, jQuery, and Bootstrap. It can be hosted by a static web server; the repository also contains Azure Static Web Apps deployment workflows in [`.github/workflows/`](.github/workflows/).
+The application lives in [`DecisionTree/index.html`](DecisionTree/index.html) and uses D3 7.9.0, AngularJS, and Bootstrap 5.3.8. Bootstrap is bundled locally; a small transitional adapter connects its dialogs to AngularJS. It can be hosted by a static web server; the repository also contains Azure Static Web Apps deployment workflows in [`.github/workflows/`](.github/workflows/).
 
 To report an issue, include the steps to reproduce it and, where possible, a small example tree with any sensitive information removed.
 
